@@ -1,0 +1,148 @@
+mod commands;
+pub mod companion;
+pub mod companion_consolidation;
+pub mod companion_growth;
+pub mod companion_soul_writer;
+pub mod execution;
+pub mod feature_generation;
+pub mod flows;
+pub mod lorebook_entry_generator;
+pub mod lorebook_generator;
+pub mod memory;
+pub mod persistence;
+pub mod prompting;
+pub mod provider_adapter;
+pub mod reply_helper;
+pub mod scene;
+pub mod service;
+pub mod sse;
+pub mod temporal;
+pub mod thinking;
+pub mod tooling;
+pub mod types;
+
+pub use persistence::{attachments, repository, storage};
+pub use prompting::{
+    entries, lorebook_matcher, messages, prompt_engine, prompts, request, request_builder,
+    turn_builder,
+};
+
+pub use commands::{
+    __cmd__abort_companion_soul, __cmd__abort_dynamic_memory, __cmd__chat_add_message_attachment,
+    __cmd__chat_completion, __cmd__chat_continue, __cmd__chat_generate_companion_soul,
+    __cmd__chat_generate_design_reference_description, __cmd__chat_generate_lorebook_entry_draft,
+    __cmd__chat_generate_lorebook_keyword_draft, __cmd__chat_generate_scene_image,
+    __cmd__chat_generate_scene_prompt, __cmd__chat_generate_user_reply,
+    __cmd__chat_message_debug_snapshot, __cmd__chat_regenerate, __cmd__chat_template_export_as_usc,
+    __cmd__companion_clear_soul_growth, __cmd__companion_remove_soul_growth,
+    __cmd__companion_set_soul_growth_lock,
+    __cmd__create_prompt_template, __cmd__delete_prompt_template,
+    __cmd__dynamic_memory_cycle_status, __cmd__dynamic_memory_pending_approval,
+    __cmd__export_prompt_template_as_usc, __cmd__get_app_default_template_id,
+    __cmd__get_default_character_rules, __cmd__get_default_system_prompt_template,
+    __cmd__get_prompt_parameter_engine, __cmd__get_prompt_template,
+    __cmd__get_required_template_variables, __cmd__is_app_default_template,
+    __cmd__list_prompt_templates, __cmd__render_prompt_preview,
+    __cmd__reset_all_protected_templates, __cmd__reset_app_default_template,
+    __cmd__reset_avatar_edit_template, __cmd__reset_avatar_generation_template,
+    __cmd__reset_companion_soul_writer_template, __cmd__reset_companion_template,
+    __cmd__reset_design_reference_template, __cmd__reset_dynamic_memory_local_template,
+    __cmd__reset_dynamic_memory_template, __cmd__reset_dynamic_summary_template,
+    __cmd__reset_group_chat_roleplay_template, __cmd__reset_group_chat_template,
+    __cmd__reset_help_me_reply_conversational_template, __cmd__reset_help_me_reply_template,
+    __cmd__reset_local_roleplay_template, __cmd__reset_lorebook_entry_writer_template,
+    __cmd__reset_lorebook_keyword_generator_template, __cmd__reset_scene_generation_template,
+    __cmd__reset_scene_prompt_writer_template, __cmd__retry_dynamic_memory, __cmd__search_messages,
+    __cmd__skip_dynamic_memory_cycle, __cmd__trigger_dynamic_memory, __cmd__update_prompt_template,
+    __cmd__validate_template_variables, abort_companion_soul, abort_dynamic_memory,
+    chat_add_message_attachment, chat_completion, chat_continue, chat_generate_companion_soul,
+    chat_generate_design_reference_description, chat_generate_lorebook_entry_draft,
+    chat_generate_lorebook_keyword_draft, chat_generate_scene_image, chat_generate_scene_prompt,
+    chat_generate_user_reply, chat_message_debug_snapshot, chat_regenerate,
+    chat_template_export_as_usc, companion_clear_soul_growth, companion_remove_soul_growth,
+    companion_set_soul_growth_lock,
+    create_prompt_template, delete_prompt_template, dynamic_memory_cycle_status,
+    dynamic_memory_pending_approval, export_prompt_template_as_usc, get_app_default_template_id,
+    get_default_character_rules, get_default_system_prompt_template, get_prompt_parameter_engine,
+    get_prompt_template, get_required_template_variables, is_app_default_template,
+    list_prompt_templates, render_prompt_preview, reset_all_protected_templates,
+    reset_app_default_template, reset_avatar_edit_template, reset_avatar_generation_template,
+    reset_companion_soul_writer_template, reset_companion_template,
+    reset_design_reference_template, reset_dynamic_memory_local_template,
+    reset_dynamic_memory_template, reset_dynamic_summary_template,
+    reset_group_chat_roleplay_template, reset_group_chat_template,
+    reset_help_me_reply_conversational_template, reset_help_me_reply_template,
+    reset_local_roleplay_template, reset_lorebook_entry_writer_template,
+    reset_lorebook_keyword_generator_template, reset_scene_generation_template,
+    reset_scene_prompt_writer_template, retry_dynamic_memory, search_messages,
+    skip_dynamic_memory_cycle, trigger_dynamic_memory, update_prompt_template,
+    validate_template_variables,
+};
+
+// tauri-macros 2.6.3 emits a second hidden macro per command
+// (`__tauri_command_name_*`, alongside `__cmd__*`) that the generated
+// handler matches the invoked command name against. `commands` is a
+// private module, so those macros need re-exporting here too or every
+// command in it fails to resolve at the invoke_handler call site.
+#[rustfmt::skip]
+pub use commands::{
+    __tauri_command_name_abort_companion_soul,
+    __tauri_command_name_abort_dynamic_memory,
+    __tauri_command_name_chat_add_message_attachment,
+    __tauri_command_name_chat_completion,
+    __tauri_command_name_chat_continue,
+    __tauri_command_name_chat_generate_companion_soul,
+    __tauri_command_name_chat_generate_design_reference_description,
+    __tauri_command_name_chat_generate_lorebook_entry_draft,
+    __tauri_command_name_chat_generate_lorebook_keyword_draft,
+    __tauri_command_name_chat_generate_scene_image,
+    __tauri_command_name_chat_generate_scene_prompt,
+    __tauri_command_name_chat_generate_user_reply,
+    __tauri_command_name_chat_message_debug_snapshot,
+    __tauri_command_name_chat_regenerate,
+    __tauri_command_name_chat_template_export_as_usc,
+    __tauri_command_name_companion_clear_soul_growth,
+    __tauri_command_name_companion_remove_soul_growth,
+    __tauri_command_name_companion_set_soul_growth_lock,
+    __tauri_command_name_create_prompt_template,
+    __tauri_command_name_delete_prompt_template,
+    __tauri_command_name_dynamic_memory_cycle_status,
+    __tauri_command_name_dynamic_memory_pending_approval,
+    __tauri_command_name_export_prompt_template_as_usc,
+    __tauri_command_name_get_app_default_template_id,
+    __tauri_command_name_get_default_character_rules,
+    __tauri_command_name_get_default_system_prompt_template,
+    __tauri_command_name_get_prompt_parameter_engine,
+    __tauri_command_name_get_prompt_template,
+    __tauri_command_name_get_required_template_variables,
+    __tauri_command_name_is_app_default_template,
+    __tauri_command_name_list_prompt_templates,
+    __tauri_command_name_render_prompt_preview,
+    __tauri_command_name_reset_all_protected_templates,
+    __tauri_command_name_reset_app_default_template,
+    __tauri_command_name_reset_avatar_edit_template,
+    __tauri_command_name_reset_avatar_generation_template,
+    __tauri_command_name_reset_companion_soul_writer_template,
+    __tauri_command_name_reset_companion_template,
+    __tauri_command_name_reset_design_reference_template,
+    __tauri_command_name_reset_dynamic_memory_local_template,
+    __tauri_command_name_reset_dynamic_memory_template,
+    __tauri_command_name_reset_dynamic_summary_template,
+    __tauri_command_name_reset_group_chat_roleplay_template,
+    __tauri_command_name_reset_group_chat_template,
+    __tauri_command_name_reset_help_me_reply_conversational_template,
+    __tauri_command_name_reset_help_me_reply_template,
+    __tauri_command_name_reset_local_roleplay_template,
+    __tauri_command_name_reset_lorebook_entry_writer_template,
+    __tauri_command_name_reset_lorebook_keyword_generator_template,
+    __tauri_command_name_reset_scene_generation_template,
+    __tauri_command_name_reset_scene_prompt_writer_template,
+    __tauri_command_name_retry_dynamic_memory,
+    __tauri_command_name_search_messages,
+    __tauri_command_name_skip_dynamic_memory_cycle,
+    __tauri_command_name_trigger_dynamic_memory,
+    __tauri_command_name_update_prompt_template,
+    __tauri_command_name_validate_template_variables,
+};
+
+pub(crate) use commands::take_aborted_request;
