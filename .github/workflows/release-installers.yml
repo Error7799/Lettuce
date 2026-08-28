@@ -1,0 +1,126 @@
+# Builds double-clickable installers and attaches them to a GitHub Release.
+#
+# Why this exists alongside the upstream `desktop-release-build.yml`: that one
+# is a large matrix of llama.cpp GPU variants driven by hand-set inputs, and it
+# installs dependencies with Bun. This fork ships a `package-lock.json` and only
+# needs the plain CPU build, so this workflow stays small enough to reason about
+# and runs on its own from a version tag.
+#
+# Usage:
+#   git tag v1.2.1 && git push origin v1.2.1
+# then collect the .dmg / .exe from the Releases page.
+
+name: Release installers
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to publish the installers under (e.g. v1.2.1)"
+        required: true
+        type: string
+
+concurrency:
+  group: release-installers-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.label }}
+    # One platform failing must not deny you the others — an Intel-Mac runner
+    # hiccup should still leave you with the Apple Silicon build.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-14
+            target: aarch64-apple-darwin
+            label: macOS (Apple Silicon)
+          - platform: macos-13
+            target: x86_64-apple-darwin
+            label: macOS (Intel)
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            label: Windows
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      # The Rust build is the slow half — llama.cpp and whisper.cpp compile from
+      # C++ source. Caching turns a ~40 minute rebuild into a few minutes.
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: ${{ matrix.target }}
+
+      # Both runner images normally ship CMake; install only if that changes,
+      # rather than paying for a reinstall on every run.
+      - name: Ensure CMake (macOS)
+        if: startsWith(matrix.platform, 'macos')
+        run: cmake --version || brew install cmake
+
+      - name: Ensure CMake (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: bash
+        run: cmake --version || choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Ad-hoc signature. This is not an Apple Developer identity, so the
+          # download still carries a quarantine flag — see the release notes
+          # below for the one command that clears it. Without even the ad-hoc
+          # signature, Apple Silicon refuses to launch the binary at all.
+          APPLE_SIGNING_IDENTITY: "-"
+        with:
+          args: --target ${{ matrix.target }}
+          tagName: ${{ inputs.tag || github.ref_name }}
+          releaseName: LettuceAI ${{ inputs.tag || github.ref_name }}
+          releaseDraft: false
+          prerelease: false
+          releaseBody: |
+            Download the file for your machine, then see below.
+
+            | Machine | File |
+            |---|---|
+            | MacBook (M1/M2/M3/M4) | `*_aarch64.dmg` |
+            | MacBook (Intel) | `*_x64.dmg` |
+            | Windows | `*_x64-setup.exe` |
+
+            ### macOS — one extra step, once
+
+            These builds are signed ad-hoc, not notarized with a paid Apple
+            Developer account, so macOS quarantines them and reports the app as
+            "damaged". It is not damaged. Open the `.dmg`, drag the app to
+            Applications, then run this once in Terminal:
+
+            ```
+            xattr -dr com.apple.quarantine /Applications/lettuceai.app
+            ```
+
+            After that the leaf icon in Applications opens it normally, and you
+            never need the command again — including after future updates.
+
+            ### Windows
+
+            Run the `.exe`. SmartScreen will warn about an unknown publisher for
+            the same reason (no paid code-signing certificate); choose
+            **More info → Run anyway**.
