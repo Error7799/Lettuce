@@ -19,19 +19,30 @@ Go to the [Releases page](../../releases) and download the file for your machine
 
 ### macOS — one extra step, once
 
-Open the `.dmg`, drag **lettuceai** into Applications, then run this once in
-Terminal:
+Open the `.dmg` and drag **lettuceai** into Applications.
+
+The first time you open it, macOS will claim the app is "damaged". It isn't.
+That is what macOS says about *any* app that has not been through Apple's paid
+notarization — it is the quarantine flag on the download, not a corrupt file.
+No Terminal needed to get past it:
+
+1. Open **Applications**, right-click **lettuceai**, choose **Open**
+2. Click **Open** again in the dialog
+
+If macOS still refuses, go to **System Settings → Privacy & Security**, scroll
+down, and click **Open Anyway** next to the message about lettuceai.
+
+You only do this once per install. Afterwards the leaf icon opens like any
+other app.
+
+<details>
+<summary>Terminal equivalent, if you prefer</summary>
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/lettuceai.app
 ```
 
-Then open it from Applications — the leaf icon — like any other app.
-
-That command is needed because these builds are signed *ad-hoc* rather than
-notarized with a paid Apple Developer account. Without it macOS reports the app
-as "damaged", which is misleading: it is the quarantine flag every unnotarized
-download gets, not a corrupt file. You only need it once per install.
+</details>
 
 ### Windows
 

@@ -7,8 +7,51 @@
   
   Privacy-first AI roleplay & storytelling app with long-term memory, custom characters, and 20+ providers. Runs on Android, Windows, macOS, and Linux.
   
-  [Overview](#overview) • [Install](#install) • [Development](#development) • [Android](#android) • [iOS](#ios) • [Contributing](#contributing)
+  [Download](#download) • [Overview](#overview) • [Development](#development) • [Android](#android) • [iOS](#ios) • [Contributing](#contributing)
 </div>
+
+## Download
+
+**[⬇ Get the app from the Releases page](../../releases/latest)** — then pick the
+file for your computer:
+
+| Your computer | File to download |
+|---|---|
+| **MacBook / iMac**, 2020 or newer | `..._aarch64.dmg` |
+| **Mac**, older (Intel) | `..._x64.dmg` |
+| **Windows** | `..._x64-setup.exe` |
+
+Nothing else to install. You do **not** need Node, Rust, or a compiler — those
+are only for people changing the code.
+
+### Windows
+
+Double-click the `.exe`. Windows will say the publisher is unknown — click
+**More info**, then **Run anyway**. That warning appears because the app isn't
+signed with a paid certificate, not because anything is wrong with it.
+
+### Mac
+
+Open the `.dmg` and drag **lettuceai** to Applications.
+
+The first time you open it, macOS will claim the app is "damaged". It isn't —
+that's what macOS says about any app that hasn't been through Apple's paid
+notarization. To get past it:
+
+1. Open **Applications**, right-click **lettuceai**, choose **Open**
+2. Click **Open** again in the dialog
+
+If macOS still refuses, go to **System Settings → Privacy & Security**, scroll
+down, and click **Open Anyway** next to the message about lettuceai.
+
+You only do this once. After that it opens normally from the Dock or Launchpad.
+
+### Then what?
+
+Open the app and add an API key under **Settings → Providers**. That's the only
+setup step — everything else works out of the box.
+
+> Building from source instead? See **[SETUP.md](SETUP.md)**.
 
 ## Overview
 
@@ -41,25 +84,31 @@ LettuceAI is fully free and open source with no paywalls or locked features. You
 
 Screenshots feature “King Cassian” by [jawawgf](https://character-tavern.com/character/jawawgf/king_cassian), used for demonstration.
 
-## Install
+## Build from source
+
+Only for changing the code. **To just use the app, see [Download](#download)** —
+it needs none of this.
 
 ### Prerequisites
 
-- Bun 1.1+ (includes Node.js compatibility): https://bun.sh/
+- Node.js 20+ (or Bun 1.1+): https://nodejs.org/
 - Rust 1.70+ and Cargo
+- CMake and a C++ toolchain (llama.cpp and whisper.cpp build from source)
 - Android SDK (optional, for Android builds)
 - Xcode + iOS SDK (optional, for iOS builds, macOS only)
 
 ### Quick Start
 
 ```bash
-# Clone the repository
-git clone https://github.com/LettuceAI/mobile-app.git
-cd mobile-app
-
-# Install dependencies
-bun install
+git clone https://github.com/Error7799/LettuceAI.git
+cd LettuceAI
+npm run setup    # checks prerequisites, then installs dependencies
+npm start        # runs the app
 ```
+
+`npm run setup` names anything missing and prints the exact command to install
+it. Full details, including per-platform prerequisites and troubleshooting, are
+in **[SETUP.md](SETUP.md)**.
 
 ### Nix
 

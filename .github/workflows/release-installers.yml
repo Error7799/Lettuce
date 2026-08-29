@@ -1,14 +1,21 @@
 # Builds double-clickable installers and attaches them to a GitHub Release.
 #
-# Why this exists alongside the upstream `desktop-release-build.yml`: that one
-# is a large matrix of llama.cpp GPU variants driven by hand-set inputs, and it
-# installs dependencies with Bun. This fork ships a `package-lock.json` and only
-# needs the plain CPU build, so this workflow stays small enough to reason about
-# and runs on its own from a version tag.
-#
 # Usage:
-#   git tag v1.2.1 && git push origin v1.2.1
+#   git tag v1.2.3 && git push origin v1.2.3
 # then collect the .dmg / .exe from the Releases page.
+#
+# Two deliberate choices, both from watching the first attempt fail:
+#
+# 1. The build runs as a plain `npm run tauri build` and the upload is
+#    softprops/action-gh-release, rather than tauri-apps/tauri-action. The
+#    action failed instantly on both platforms with no usable signal, and its
+#    logs need authentication to read. Explicit steps fail where the failure is
+#    legible. This is also what the upstream desktop workflow in this repo does.
+#
+# 2. Both Mac targets build on macos-14. The macos-13 (Intel) runner sat queued
+#    for 23 hours without ever being assigned, so an Intel job pinned to that
+#    label produces nothing at all. Apple Silicon runners can cross-compile the
+#    Intel slice, which actually ships.
 
 name: Release installers
 
@@ -18,7 +25,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to publish the installers under (e.g. v1.2.1)"
+        description: "Tag to publish the installers under (e.g. v1.2.3)"
         required: true
         type: string
 
@@ -32,8 +39,7 @@ permissions:
 jobs:
   build:
     name: ${{ matrix.label }}
-    # One platform failing must not deny you the others — an Intel-Mac runner
-    # hiccup should still leave you with the Apple Silicon build.
+    # One platform failing must not deny you the others.
     strategy:
       fail-fast: false
       matrix:
@@ -41,12 +47,22 @@ jobs:
           - platform: macos-14
             target: aarch64-apple-darwin
             label: macOS (Apple Silicon)
-          - platform: macos-13
+            bundles: app,dmg
+            artifacts: |
+              src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+          - platform: macos-14
             target: x86_64-apple-darwin
             label: macOS (Intel)
+            bundles: app,dmg
+            artifacts: |
+              src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             label: Windows
+            bundles: nsis,msi
+            artifacts: |
+              src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe
+              src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
     runs-on: ${{ matrix.platform }}
 
     steps:
@@ -68,59 +84,69 @@ jobs:
           workspaces: src-tauri
           key: ${{ matrix.target }}
 
-      # Both runner images normally ship CMake; install only if that changes,
-      # rather than paying for a reinstall on every run.
-      - name: Ensure CMake (macOS)
-        if: startsWith(matrix.platform, 'macos')
-        run: cmake --version || brew install cmake
-
-      - name: Ensure CMake (Windows)
-        if: matrix.platform == 'windows-latest'
+      # Both runner images normally ship CMake; install only if that changes.
+      - name: Ensure CMake
         shell: bash
-        run: cmake --version || choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System'
+        run: cmake --version || (${{ startsWith(matrix.platform, 'macos') && 'brew install cmake' || 'choco install cmake --installargs ADD_CMAKE_TO_PATH=System' }})
 
       - name: Install dependencies
         run: npm ci
 
-      - uses: tauri-apps/tauri-action@v0
+      - name: Build installer
+        shell: bash
+        # Ad-hoc signature on macOS. Not an Apple Developer identity, so the
+        # download still carries a quarantine flag — the release notes say how
+        # to clear it. Without even the ad-hoc signature, Apple Silicon refuses
+        # to launch the binary at all.
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Ad-hoc signature. This is not an Apple Developer identity, so the
-          # download still carries a quarantine flag — see the release notes
-          # below for the one command that clears it. Without even the ad-hoc
-          # signature, Apple Silicon refuses to launch the binary at all.
-          APPLE_SIGNING_IDENTITY: "-"
+          APPLE_SIGNING_IDENTITY: ${{ startsWith(matrix.platform, 'macos') && '-' || '' }}
+        run: npm run tauri build -- --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+
+      - name: List what was produced
+        shell: bash
+        run: find src-tauri/target/${{ matrix.target }}/release/bundle -type f \( -name '*.dmg' -o -name '*.exe' -o -name '*.msi' \) -print
+
+      - name: Attach to release
+        uses: softprops/action-gh-release@v2
         with:
-          args: --target ${{ matrix.target }}
-          tagName: ${{ inputs.tag || github.ref_name }}
-          releaseName: LettuceAI ${{ inputs.tag || github.ref_name }}
-          releaseDraft: false
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          name: LettuceAI ${{ inputs.tag || github.ref_name }}
+          draft: false
           prerelease: false
-          releaseBody: |
-            Download the file for your machine, then see below.
+          fail_on_unmatched_files: true
+          files: ${{ matrix.artifacts }}
+          body: |
+            ## Download
 
-            | Machine | File |
+            | Your computer | File to download |
             |---|---|
-            | MacBook (M1/M2/M3/M4) | `*_aarch64.dmg` |
-            | MacBook (Intel) | `*_x64.dmg` |
-            | Windows | `*_x64-setup.exe` |
+            | **MacBook / iMac** (2020 or newer) | `..._aarch64.dmg` |
+            | **Mac** (older, Intel) | `..._x64.dmg` |
+            | **Windows** | `..._x64-setup.exe` |
 
-            ### macOS — one extra step, once
-
-            These builds are signed ad-hoc, not notarized with a paid Apple
-            Developer account, so macOS quarantines them and reports the app as
-            "damaged". It is not damaged. Open the `.dmg`, drag the app to
-            Applications, then run this once in Terminal:
-
-            ```
-            xattr -dr com.apple.quarantine /Applications/lettuceai.app
-            ```
-
-            After that the leaf icon in Applications opens it normally, and you
-            never need the command again — including after future updates.
+            ---
 
             ### Windows
 
-            Run the `.exe`. SmartScreen will warn about an unknown publisher for
-            the same reason (no paid code-signing certificate); choose
-            **More info → Run anyway**.
+            Double-click the `.exe`. Windows will say the publisher is unknown —
+            click **More info**, then **Run anyway**. That warning appears
+            because the app isn't signed with a paid certificate, not because
+            anything is wrong with it.
+
+            ### Mac
+
+            Open the `.dmg` and drag **lettuceai** to Applications.
+
+            The first time you open it, macOS will claim the app is "damaged".
+            It isn't — that's the warning every app gets when it hasn't been
+            through Apple's paid notarization. To get past it:
+
+            1. Open **Applications**, right-click **lettuceai**, choose **Open**
+            2. Click **Open** again in the dialog
+
+            If macOS still refuses, go to **System Settings → Privacy &
+            Security**, scroll down, and click **Open Anyway** next to the
+            message about lettuceai.
+
+            You only do this once. After that it opens normally from the Dock or
+            Launchpad.
