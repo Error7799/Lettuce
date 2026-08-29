@@ -10,11 +10,12 @@ import { useIsMobileViewport } from "./hooks/useIsMobileViewport";
 import { useShowNsfwImages } from "./hooks/useDiscoveryNsfw";
 import { useNavigationManager } from "../../navigation";
 import {
-  fetchDiscoveryCards,
   type DiscoveryCard as DiscoveryCardType,
   type CardType,
   type SortOption,
 } from "../../../core/discovery";
+import { useDiscoveryProvider } from "./hooks/useDiscoveryProvider";
+import type { DiscoverySort } from "../../../core/discovery/providers/registry";
 import { BottomMenu } from "../../components";
 
 interface SectionConfig {
@@ -30,12 +31,37 @@ interface SortOptionItem {
   label: string;
 }
 
+/**
+ * The sort dropdown offers Character Tavern's granularity (likes, downloads,
+ * views, messages …). Providers only agree on three orderings, so the finer
+ * options collapse onto the nearest one rather than being hidden per source —
+ * picking "most viewed" on a catalogue with no view counter should still give
+ * you a sensible popular-first list, not an error.
+ */
+function toDiscoverySort(sortBy: SortOption, section: CardType): DiscoverySort {
+  switch (sortBy) {
+    case "likes":
+    case "downloads":
+    case "views":
+    case "messages":
+      return "popular";
+    case "created":
+      return "newest";
+    case "updated":
+      return "trending";
+    default:
+      // "name" and anything added later: fall back to what the section means.
+      return section;
+  }
+}
+
 export function DiscoveryBrowsePage() {
   const navigate = useNavigate();
   const { } = useNavigationManager();
   const { t } = useI18n();
   const isMobileViewport = useIsMobileViewport();
   const showNsfw = useShowNsfwImages();
+  const { provider } = useDiscoveryProvider();
 
   const SECTION_CONFIGS: Record<CardType, SectionConfig> = {
     trending: {
@@ -88,15 +114,24 @@ export function DiscoveryBrowsePage() {
     setError(null);
 
     try {
-      const data = await fetchDiscoveryCards(section, sortBy, true);
-      setCards(data);
+      // Goes through the selected provider rather than straight to the Rust
+      // Character Tavern endpoint. That endpoint returns 404 for every card
+      // type now, so hard-coding it made "See all" fail regardless of which
+      // source the user had picked.
+      const result = await provider.browse({
+        sort: toDiscoverySort(sortBy, section),
+        page: 1,
+        pageSize: 48,
+        includeNsfw: showNsfw,
+      });
+      setCards(result.cards);
     } catch (err) {
       console.error("Failed to load cards:", err);
       setError(err instanceof Error ? err.message : t("discovery.errors.loadContent"));
     } finally {
       setLoading(false);
     }
-  }, [section, sortBy, t]);
+  }, [provider, section, sortBy, showNsfw, t]);
 
   useEffect(() => {
     loadCards();
