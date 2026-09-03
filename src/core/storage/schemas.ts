@@ -3039,67 +3039,157 @@ export type TrustedCertificate = z.infer<typeof TrustedCertificateSchema>;
  * JSON blob — so this needs no backend change.
  * ------------------------------------------------------------------------ */
 
-export const PresetGenerationSchema = z.object({
-  temperature: z.number().min(0).max(2).nullable().optional(),
-  topP: z.number().min(0).max(1).nullable().optional(),
-  topK: z.number().int().min(1).max(500).nullable().optional(),
-  maxOutputTokens: z.number().int().min(1).nullable().optional(),
-  contextLength: z.number().int().min(0).nullable().optional(),
-  frequencyPenalty: z.number().min(-2).max(2).nullable().optional(),
-  presencePenalty: z.number().min(-2).max(2).nullable().optional(),
-});
-export type PresetGeneration = z.infer<typeof PresetGenerationSchema>;
 
-export const PresetSourceSchema = z.enum(["lettuce", "sillytavern"]);
-export type PresetSource = z.infer<typeof PresetSourceSchema>;
+/* ── Copilot ───────────────────────────────────────────────────────────────
+ * An out-of-character assistant that sits beside a roleplay rather than in
+ * it: brainstorming, scene analysis, "what would this character actually do".
+ *
+ * Ported from the SillyTavern Copilot extension, which cannot run here — it
+ * is written against SillyTavern's runtime and injects its own interface into
+ * SillyTavern's DOM. The useful half is the idea, so this rebuilds it against
+ * LettuceAI's own data and look.
+ *
+ * Copilot conversations are deliberately NOT sessions. A session is roleplay
+ * the model reads back as story; these must never leak into that, so they
+ * live in AppState under their own type and are never handed to the chat
+ * engine.
+ * ------------------------------------------------------------------------ */
+
+/** A shortcut button above the composer. `prompt` may use {{char}}/{{user}}. */
+export const CopilotQuickPromptSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  prompt: z.string().min(1),
+  /** lucide icon name; the UI falls back to a default when unknown. */
+  icon: z.string().default("Sparkles"),
+});
+export type CopilotQuickPrompt = z.infer<typeof CopilotQuickPromptSchema>;
 
 /**
- * A find/replace rule, mirroring SillyTavern's regex scripts field-for-field so
- * they can be imported and exported without translation.
+ * Which roleplay messages Copilot is allowed to see.
  *
- * `placement` says which text the rule runs over (1 user input, 2 AI output,
- * 5 world info, 6 reasoning). `markdownOnly` rewrites only what is displayed;
- * `promptOnly` rewrites only what is sent to the model. Neither set means the
- * rule affects both.
+ * "recent" follows the chat as it grows; "picked" pins an explicit set by
+ * message id and ignores everything else, which is the point of hand-picking
+ * — a later message must not quietly rejoin the context.
  */
-export const RegexPlacementSchema = z.union([
-  z.literal(1), // user input
-  z.literal(2), // AI output
-  z.literal(5), // world info
-  z.literal(6), // reasoning
-]);
-export type RegexPlacement = z.infer<typeof RegexPlacementSchema>;
+export const CopilotContextModeSchema = z.enum(["recent", "picked", "none"]);
+export type CopilotContextMode = z.infer<typeof CopilotContextModeSchema>;
 
-export const RegexRuleSchema = z.object({
-  id: z.string().min(1),
-  scriptName: z.string().min(1),
-  findRegex: z.string(),
-  replaceString: z.string().default(""),
-  trimStrings: z.array(z.string()).default([]),
-  placement: z.array(RegexPlacementSchema).default([2]),
-  disabled: z.boolean().default(false),
-  markdownOnly: z.boolean().default(false),
-  promptOnly: z.boolean().default(false),
-  runOnEdit: z.boolean().default(false),
-  minDepth: z.number().int().nullable().default(null),
-  maxDepth: z.number().int().nullable().default(null),
+export const CopilotContextSelectionSchema = z.object({
+  mode: CopilotContextModeSchema.default("recent"),
+  /** How many trailing messages "recent" includes. */
+  recentCount: z.number().int().min(0).max(200).default(20),
+  /** Message ids for "picked". Ids that no longer exist are skipped. */
+  pickedMessageIds: z.array(z.string()).default([]),
 });
-export type RegexRule = z.infer<typeof RegexRuleSchema>;
+export type CopilotContextSelection = z.infer<typeof CopilotContextSelectionSchema>;
 
-export const PresetSchema = z.object({
+export const CopilotMessageSchema = z.object({
   id: z.string().min(1),
-  name: z.string().min(1),
-  description: z.string().optional(),
-  source: PresetSourceSchema.default("lettuce"),
-  /** The SystemPromptTemplate holding this preset's prompt blocks. */
-  promptTemplateId: z.string().min(1),
-  generation: PresetGenerationSchema.default({}),
-  /** Find/replace rules that travel with this preset. */
-  regexes: z.array(RegexRuleSchema).default([]),
+  role: z.enum(["user", "assistant"]),
+  content: z.string(),
+  createdAt: z.number().int().nonnegative(),
+  /** Surfaced in the UI when a turn fails, instead of a silent empty reply. */
+  error: z.string().nullish(),
+});
+export type CopilotMessage = z.infer<typeof CopilotMessageSchema>;
+
+export const CopilotConversationSchema = z.object({
+  id: z.string().min(1),
+  /** The roleplay session this belongs beside; null for a standalone one. */
+  sessionId: z.string().nullable().default(null),
+  title: z.string().default("Brainstorm"),
+  messages: z.array(CopilotMessageSchema).default([]),
+  context: CopilotContextSelectionSchema.default({
+    mode: "recent",
+    recentCount: 20,
+    pickedMessageIds: [],
+  }),
+  /** Model override; null means whatever the app is already using. */
+  modelId: z.string().nullable().default(null),
   createdAt: z.number().int().nonnegative(),
   updatedAt: z.number().int().nonnegative(),
 });
-export type Preset = z.infer<typeof PresetSchema>;
+export type CopilotConversation = z.infer<typeof CopilotConversationSchema>;
+
+export const CopilotStateSchema = z.object({
+  enabled: z.boolean().default(false),
+  conversations: z.array(CopilotConversationSchema).default([]),
+  quickPrompts: z.array(CopilotQuickPromptSchema).default([]),
+});
+export type CopilotState = z.infer<typeof CopilotStateSchema>;
+
+/* ── World settings ────────────────────────────────────────────────────────
+ * The rules a world runs on, as toggles. Replaces the preset system.
+ *
+ * `compiledPrompt` is the rendered text of the toggles above it, stored
+ * alongside them because the Rust prompt engine injects it verbatim. Keeping
+ * the compiler in TypeScript means the wording lives in one place; storing the
+ * result means the backend never has to know how a toggle becomes a sentence.
+ * It is derived data — always rewritten from the settings on save, never
+ * edited on its own.
+ * ------------------------------------------------------------------------ */
+export const WorldSettingsSchema = z.object({
+  enabled: z.boolean().default(false),
+
+  lethality: z.enum(["safe", "realistic", "harsh", "lethal"]).default("realistic"),
+  plotArmour: z.enum(["full", "some", "none"]).default("some"),
+  actionsCanFail: z.boolean().default(true),
+
+  era: z
+    .enum([
+      "unset",
+      "medieval",
+      "renaissance",
+      "victorian",
+      "modern",
+      "nearFuture",
+      "cyberpunk",
+      "space",
+      "postApocalyptic",
+      "highFantasy",
+    ])
+    .default("unset"),
+  eraDetail: z.string().default(""),
+  enforceEra: z.boolean().default(true),
+
+  statTracking: z.enum(["off", "light", "full"]).default("off"),
+  trackHealth: z.boolean().default(true),
+  trackInventory: z.boolean().default(true),
+  trackMoney: z.boolean().default(false),
+  trackRelationships: z.boolean().default(false),
+  trackTime: z.boolean().default(false),
+
+  worldFocus: z.enum(["protagonist", "balanced", "indifferent"]).default("balanced"),
+  npcAutonomy: z.boolean().default(true),
+  offscreenEvents: z.boolean().default(false),
+
+  moralNeutrality: z.boolean().default(true),
+  noReassurance: z.boolean().default(false),
+  noOmniscience: z.boolean().default(true),
+
+  tone: z.enum(["neutral", "warm", "grim"]).default("neutral"),
+  responseLength: z.enum(["brief", "moderate", "detailed"]).default("moderate"),
+  pacing: z.enum(["fast", "steady", "slow"]).default("steady"),
+  customRules: z.string().default(""),
+
+  /** Derived: the rendered block the prompt engine injects. */
+  compiledPrompt: z.string().default(""),
+});
+export type WorldSettingsState = z.infer<typeof WorldSettingsSchema>;
+
+/**
+ * Ceiling on how much lorebook content may be injected per message.
+ *
+ * Imported lorebooks carry their own token_budget that nothing read, so a book
+ * with many always-active entries could spend most of the context before the
+ * conversation started. 0 means uncapped, which is the historical behaviour.
+ * When over budget, the lowest-priority entries are dropped first.
+ */
+export const LorebookBudgetSchema = z.object({
+  maxTokens: z.number().int().min(0).max(200000).default(0),
+});
+export type LorebookBudget = z.infer<typeof LorebookBudgetSchema>;
 
 export const AppStateSchema = z.object({
   onboarding: OnboardingStateSchema,
@@ -3125,10 +3215,16 @@ export const AppStateSchema = z.object({
    * "off" leaves rendering completely untouched.
    */
   adhdReading: z.enum(["off", "light", "medium", "strong"]).default("off"),
-  /** SillyTavern-style generation presets. */
-  presets: z.array(PresetSchema).default([]),
-  /** Preset applied to new chats; a chat may override it. */
-  defaultPresetId: z.string().nullable().default(null),
+  /** Cap on injected lorebook content. 0 = uncapped. */
+  lorebookBudget: LorebookBudgetSchema.default(() => LorebookBudgetSchema.parse({})),
+  /** The rules this world runs on. Replaces the preset system. */
+  world: WorldSettingsSchema.default(() => WorldSettingsSchema.parse({})),
+  /** Out-of-character assistant. Off until switched on in Settings. */
+  copilot: CopilotStateSchema.default({
+    enabled: false,
+    conversations: [],
+    quickPrompts: [],
+  }),
 });
 export type AppState = z.infer<typeof AppStateSchema>;
 
@@ -3403,8 +3499,9 @@ export function createDefaultAppState(): AppState {
     groupChatsViewMode: "classic",
     trustedCertificates: [],
     adhdReading: "off",
-    presets: [],
-    defaultPresetId: null,
+    lorebookBudget: LorebookBudgetSchema.parse({}),
+    world: WorldSettingsSchema.parse({}),
+    copilot: { enabled: false, conversations: [], quickPrompts: [] },
   };
 }
 

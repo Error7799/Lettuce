@@ -17,7 +17,7 @@ import {
   HelpCircle,
   Image as ImageIcon,
   Info,
-  Layers,
+  Globe,
   Mic,
   Network,
   Palette,
@@ -257,13 +257,13 @@ export function SettingsLayout() {
           ]
         : []),
       {
-        key: "presets",
-        icon: <Layers />,
+        key: "world",
+        icon: <Globe />,
         // Literal rather than a t() key: adding one would mean touching every
         // locale file, and an untranslated key renders worse than English.
-        label: "Presets",
-        matchPath: "/settings/presets",
-        onSelect: () => navigate("/settings/presets"),
+        label: "World",
+        matchPath: "/settings/world",
+        onSelect: () => navigate("/settings/world"),
       },
       {
         key: "prompts",

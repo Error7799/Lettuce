@@ -29,6 +29,7 @@ pub use prompting::{
 
 pub use commands::{
     __cmd__abort_companion_soul, __cmd__abort_dynamic_memory, __cmd__chat_add_message_attachment,
+    __cmd__copilot_completion,
     __cmd__chat_completion, __cmd__chat_continue, __cmd__chat_generate_companion_soul,
     __cmd__chat_generate_design_reference_description, __cmd__chat_generate_lorebook_entry_draft,
     __cmd__chat_generate_lorebook_keyword_draft, __cmd__chat_generate_scene_image,
@@ -55,6 +56,7 @@ pub use commands::{
     __cmd__reset_scene_prompt_writer_template, __cmd__retry_dynamic_memory, __cmd__search_messages,
     __cmd__skip_dynamic_memory_cycle, __cmd__trigger_dynamic_memory, __cmd__update_prompt_template,
     __cmd__validate_template_variables, abort_companion_soul, abort_dynamic_memory,
+    copilot_completion,
     chat_add_message_attachment, chat_completion, chat_continue, chat_generate_companion_soul,
     chat_generate_design_reference_description, chat_generate_lorebook_entry_draft,
     chat_generate_lorebook_keyword_draft, chat_generate_scene_image, chat_generate_scene_prompt,
@@ -87,6 +89,7 @@ pub use commands::{
 #[rustfmt::skip]
 pub use commands::{
     __tauri_command_name_abort_companion_soul,
+    __tauri_command_name_copilot_completion,
     __tauri_command_name_abort_dynamic_memory,
     __tauri_command_name_chat_add_message_attachment,
     __tauri_command_name_chat_completion,

@@ -1304,3 +1304,128 @@ pub fn get_prompt_parameter_engine(
 ) -> crate::chat_manager::prompting::parameter_engine::PromptParameterEngine {
     crate::chat_manager::prompting::parameter_engine::build_parameter_engine()
 }
+
+/* ── Copilot ───────────────────────────────────────────────────────────────
+ * A one-shot completion for the out-of-character assistant.
+ *
+ * Deliberately not routed through chat_completion: that writes into a session
+ * and moves the roleplay forward, which is exactly what Copilot must never do.
+ * This takes a system prompt and a plain message list, returns the reply text,
+ * and persists nothing.
+ *
+ * It reuses request_builder so every provider adapter — endpoint shape, auth
+ * header, system-role naming, payload differences between OpenAI, Anthropic
+ * and Gemini — keeps working without being reimplemented on the TypeScript
+ * side, where it would immediately drift from this one.
+ * ------------------------------------------------------------------------ */
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CopilotMessageInput {
+    pub role: String,
+    pub content: String,
+}
+
+#[tauri::command]
+pub async fn copilot_completion(
+    app: AppHandle,
+    model_id: Option<String>,
+    system: String,
+    messages: Vec<CopilotMessageInput>,
+    temperature: Option<f64>,
+    max_tokens: Option<u32>,
+) -> Result<String, String> {
+    use crate::chat_manager::storage::resolve_credential_for_model;
+    use serde_json::json;
+
+    let context = ChatContext::initialize(app.clone())?;
+    let settings = &context.settings;
+
+    // An explicit model id wins; otherwise fall back to whatever the app is
+    // already set up to use, so Copilot works before it is configured at all.
+    let (model, credential) = match model_id.as_deref().filter(|id| !id.trim().is_empty()) {
+        Some(id) => settings
+            .models
+            .iter()
+            .find(|model| model.id == id)
+            .and_then(|model| Some((model, resolve_credential_for_model(settings, model)?)))
+            .ok_or_else(|| "The model chosen for Copilot no longer exists.".to_string())?,
+        None => settings
+            .models
+            .iter()
+            .find_map(|model| Some((model, resolve_credential_for_model(settings, model)?)))
+            .ok_or_else(|| "Add a model in Settings before using Copilot.".to_string())?,
+    };
+
+    let api_key = crate::chat_manager::service::require_api_key(&app, credential, "copilot")?;
+    let system_role = crate::chat_manager::request_builder::system_role_for(credential);
+
+    let mut messages_for_api: Vec<serde_json::Value> = Vec::new();
+    let trimmed_system = system.trim();
+    if !trimmed_system.is_empty() {
+        messages_for_api.push(json!({ "role": system_role.as_ref(), "content": trimmed_system }));
+    }
+    for message in &messages {
+        let content = message.content.trim();
+        if content.is_empty() {
+            continue;
+        }
+        // Anything that is not an assistant turn is sent as a user turn;
+        // providers reject unknown role names outright.
+        let role = if message.role == "assistant" { "assistant" } else { "user" };
+        messages_for_api.push(json!({ "role": role, "content": content }));
+    }
+    if messages_for_api.is_empty() {
+        return Err("Nothing to send.".to_string());
+    }
+
+    let built = crate::chat_manager::request_builder::build_chat_request(
+        credential,
+        &api_key,
+        &model.name,
+        &messages_for_api,
+        None,
+        Some(temperature.unwrap_or(0.7)),
+        Some(1.0),
+        max_tokens.unwrap_or(1024),
+        None,
+        false,
+        None,
+        None,
+        None,
+        None,
+        None,
+        false,
+        None,
+        None,
+        false,
+        None,
+    );
+
+    let response = crate::api::api_request(
+        app.clone(),
+        crate::api::ApiRequest {
+            url: built.url,
+            method: Some("POST".into()),
+            headers: Some(built.headers),
+            query: None,
+            body: Some(built.body),
+            timeout_ms: Some(crate::transport::DEFAULT_REQUEST_TIMEOUT_MS),
+            stream: Some(false),
+            request_id: built.request_id,
+            provider_id: Some(credential.provider_id.clone()),
+            cache_key: None,
+        },
+    )
+    .await?;
+
+    if !response.ok {
+        let detail = crate::chat_manager::request::extract_error_message(response.data())
+            .unwrap_or_else(|| format!("HTTP {}", response.status));
+        return Err(detail);
+    }
+
+    crate::chat_manager::request::extract_text(response.data(), Some(&credential.provider_id))
+        .filter(|text| !text.trim().is_empty())
+        .ok_or_else(|| "The model returned an empty reply.".to_string())
+}

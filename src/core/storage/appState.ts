@@ -9,9 +9,13 @@ import {
   type CustomColors,
   type PureModeLevel,
   type TrustedCertificate,
+  WorldSettingsSchema,
 } from "./schemas";
 
 type Theme = AppState["theme"];
+
+/** Every world field, so a state saved before this feature still clones whole. */
+const DEFAULT_WORLD_STATE = WorldSettingsSchema.parse({});
 
 function cloneAppState(state?: AppState): AppState {
   const source = state ?? createDefaultAppState();
@@ -41,11 +45,22 @@ function cloneAppState(state?: AppState): AppState {
     })),
     lastSeenAppVersion: source.lastSeenAppVersion,
     adhdReading: source.adhdReading ?? "off",
-    presets: (source.presets ?? []).map((preset) => ({
-      ...preset,
-      generation: { ...preset.generation },
-    })),
-    defaultPresetId: source.defaultPresetId ?? null,
+    lorebookBudget: { maxTokens: source.lorebookBudget?.maxTokens ?? 0 },
+    world: { ...DEFAULT_WORLD_STATE, ...(source.world ?? {}) },
+    copilot: {
+      enabled: source.copilot?.enabled ?? false,
+      // Deep-copied so a mutator editing a conversation cannot write through
+      // to the state object the caller still holds.
+      conversations: (source.copilot?.conversations ?? []).map((conversation) => ({
+        ...conversation,
+        messages: conversation.messages.map((message) => ({ ...message })),
+        context: {
+          ...conversation.context,
+          pickedMessageIds: [...conversation.context.pickedMessageIds],
+        },
+      })),
+      quickPrompts: (source.copilot?.quickPrompts ?? []).map((prompt) => ({ ...prompt })),
+    },
   };
 }
 

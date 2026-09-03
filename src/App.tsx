@@ -25,7 +25,7 @@ import { LocalRuntimeDefaultsPage } from "./ui/pages/settings/LocalRuntimeDefaul
 import { ImageGenerationPage } from "./ui/pages/settings/ImageGenerationPage";
 import { StableDiffusionSettingsPage } from "./ui/pages/settings/StableDiffusionSettingsPage";
 import { SystemPromptsPage } from "./ui/pages/settings/SystemPromptsPage";
-import { PresetsPage } from "./ui/pages/settings/PresetsPage";
+import { WorldPage } from "./ui/pages/settings/WorldPage";
 import { EditPromptTemplate } from "./ui/pages/settings/EditPromptTemplate";
 import { SecurityPage } from "./ui/pages/settings/SecurityPage";
 import { ResetPage } from "./ui/pages/settings/ResetPage";
@@ -1260,7 +1260,7 @@ function AppContent() {
                   path="/settings/image-generation/local"
                   element={<StableDiffusionSettingsPage />}
                 />
-                <Route path="/settings/presets" element={<PresetsPage />} />
+                <Route path="/settings/world" element={<WorldPage />} />
                 <Route path="/settings/prompts" element={<SystemPromptsPage />} />
                 <Route path="/settings/prompts/new" element={<EditPromptTemplate />} />
                 <Route path="/settings/prompts/:id" element={<EditPromptTemplate />} />

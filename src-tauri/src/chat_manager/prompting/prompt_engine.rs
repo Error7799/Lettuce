@@ -2395,7 +2395,100 @@ fn get_lorebook_content(
         ),
     );
 
-    Ok(format_lorebook_for_prompt(&active_entries))
+    // Cap what actually gets injected.
+    //
+    // Imported lorebooks carry a token_budget that nothing here previously
+    // read, so a book with many always-active entries could spend most of the
+    // context before the conversation started — 23 always-on entries in one
+    // real case, ~13,700 tokens on every single message regardless of scene.
+    // Highest priority is kept; ties fall back to the existing display order,
+    // so trimming is predictable rather than arbitrary.
+    let budget = lorebook_token_budget(app);
+    let capped = apply_lorebook_budget(active_entries, budget, app);
+
+    Ok(format_lorebook_for_prompt(&capped))
+}
+
+/// Token ceiling for injected lorebook content, or None for uncapped.
+///
+/// Stored in app state next to the other world settings so it can be changed
+/// without a migration; absent or zero means no limit, which is the previous
+/// behaviour and therefore the safe default for existing installs.
+fn lorebook_token_budget(app: &AppHandle) -> Option<usize> {
+    let settings = crate::chat_manager::persistence::storage::load_settings(app).ok()?;
+    let value = settings
+        .app_state
+        .get("lorebookBudget")?
+        .get("maxTokens")?
+        .as_u64()?;
+    if value == 0 {
+        None
+    } else {
+        Some(value as usize)
+    }
+}
+
+/// Rough token estimate. Four characters per token is the usual approximation
+/// and is close enough for a budget whose job is preventing a blowout rather
+/// than metering exactly.
+fn estimate_tokens(text: &str) -> usize {
+    text.len().div_ceil(4)
+}
+
+fn apply_lorebook_budget(
+    entries: Vec<crate::storage_manager::lorebook::LorebookEntry>,
+    budget: Option<usize>,
+    app: &AppHandle,
+) -> Vec<crate::storage_manager::lorebook::LorebookEntry> {
+    let Some(budget) = budget else {
+        return entries;
+    };
+
+    let total: usize = entries.iter().map(|e| estimate_tokens(&e.content)).sum();
+    if total <= budget {
+        return entries;
+    }
+
+    // Choose by priority, then restore the original order for the ones kept,
+    // so the prompt still reads in the author's intended sequence.
+    let mut ranked: Vec<(usize, &crate::storage_manager::lorebook::LorebookEntry)> =
+        entries.iter().enumerate().collect();
+    ranked.sort_by(|a, b| {
+        b.1.priority
+            .cmp(&a.1.priority)
+            .then_with(|| a.0.cmp(&b.0))
+    });
+
+    let mut keep = vec![false; entries.len()];
+    let mut used = 0usize;
+    let mut dropped = 0usize;
+    for (index, entry) in ranked {
+        let cost = estimate_tokens(&entry.content);
+        if used + cost <= budget {
+            used += cost;
+            keep[index] = true;
+        } else {
+            dropped += 1;
+        }
+    }
+
+    crate::utils::log_info(
+        app,
+        "lorebook",
+        format!(
+            "Budget {} tokens: kept {} entries (~{} tokens), dropped {} lowest-priority",
+            budget,
+            keep.iter().filter(|k| **k).count(),
+            used,
+            dropped
+        ),
+    );
+
+    entries
+        .into_iter()
+        .enumerate()
+        .filter_map(|(index, entry)| keep[index].then_some(entry))
+        .collect()
 }
 
 pub fn resolve_used_lorebook_entries(
@@ -4239,6 +4332,27 @@ pub fn render_with_context_internal(
     char_desc = char_desc.replace("{{persona}}", persona_name);
     char_desc = char_desc.replace("{{user}}", persona_name);
 
+    // World rules and per-character voice.
+    //
+    // The world block is compiled on the TypeScript side and stored as text;
+    // Rust only injects it. Compiling it here as well would mean two copies of
+    // the wording, and the wording is the whole feature — they would drift.
+    //
+    // The voice block is derived here because it depends on the character
+    // being rendered. Both are appended to char_desc when the active template
+    // does not name them explicitly: every roleplay template includes
+    // {{char.desc}}, so appending is what guarantees a toggle actually reaches
+    // the model rather than depending on which template happens to be selected.
+    let world_rules = world_rules_text(&settings.app_state);
+    let char_voice = character_voice_text(character);
+
+    if !char_voice.is_empty() && !base_template.contains("{{char.voice}}") {
+        char_desc = format!("{}\n\n{}", char_desc, char_voice);
+    }
+    if !world_rules.is_empty() && !base_template.contains("{{world_rules}}") {
+        char_desc = format!("{}\n\n{}", char_desc, world_rules);
+    }
+
     // Build rules - Note: NSFW toggle is ignored when using custom prompts
     let pure_mode_level = crate::content_filter::level_from_app_state(Some(&settings.app_state));
 
@@ -4305,6 +4419,8 @@ pub fn render_with_context_internal(
     );
     result = result.replace("{{char.name}}", char_name);
     result = result.replace("{{char.desc}}", &char_desc);
+    result = result.replace("{{world_rules}}", &world_rules);
+    result = result.replace("{{char.voice}}", &char_voice);
     result = result.replace("{{persona.name}}", persona_name);
     result = result.replace("{{persona.desc}}", persona_desc);
     result = result.replace("{{user.name}}", persona_name);
@@ -4653,4 +4769,121 @@ mod prompt_cache_tests {
         assert!(!local_content.contains("{{persona.desc}}"));
         assert!(!local_content.contains("{{image["));
     }
+}
+
+/* ── World rules and character voice ──────────────────────────────────────
+ * Two blocks that make a world behave the way its settings say, and make a
+ * character behave like itself rather than like every other character.
+ * ----------------------------------------------------------------------- */
+
+/// The world-rules block, compiled on the TypeScript side and stored verbatim.
+///
+/// Rust deliberately does not know how a toggle becomes a sentence. That
+/// mapping lives in one place (src/core/world/settings.ts) so the wording can
+/// be edited and tested without touching the backend.
+pub(crate) fn world_rules_text(app_state: &Value) -> String {
+    let world = match app_state.get("world") {
+        Some(value) => value,
+        None => return String::new(),
+    };
+    if world.get("enabled").and_then(Value::as_bool) != Some(true) {
+        return String::new();
+    }
+    world
+        .get("compiledPrompt")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|text| !text.is_empty())
+        .unwrap_or("")
+        .to_string()
+}
+
+/// Pull a labelled section back out of the merged character definition.
+///
+/// The importer writes personality as `[Personality]` and example dialogue as
+/// an `<example_dialogue>` block, so those markers are the seam to cut on.
+fn definition_section(definition: &str, label: &str) -> String {
+    let opener = format!("[{}]", label);
+    let start = match definition.find(&opener) {
+        Some(index) => index + opener.len(),
+        None => return String::new(),
+    };
+    let rest = &definition[start..];
+    // Runs until the next bracketed label or the example-dialogue block.
+    let end = rest
+        .match_indices('[')
+        .map(|(index, _)| index)
+        .chain(rest.find("<example_dialogue>"))
+        .filter(|index| *index > 0)
+        .min()
+        .unwrap_or(rest.len());
+    rest[..end].trim().to_string()
+}
+
+fn condense(text: &str, limit: usize) -> String {
+    let flat = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    if flat.chars().count() <= limit {
+        return flat;
+    }
+    let cut: String = flat.chars().take(limit).collect();
+    match cut.rfind(". ") {
+        Some(stop) if stop > limit / 2 => cut[..stop + 1].trim().to_string(),
+        _ => cut.trim().to_string(),
+    }
+}
+
+/// Per-character behavioural directives.
+///
+/// Without this every character receives the same generic guidance, which is
+/// why they all read alike: instructions true of every character distinguish
+/// none of them. These name the character and quote its own personality, so
+/// two characters never receive the same block.
+pub(crate) fn character_voice_text(character: &Character) -> String {
+    let definition = character
+        .definition
+        .as_deref()
+        .or(character.description.as_deref())
+        .unwrap_or("")
+        .trim();
+    if definition.is_empty() {
+        return String::new();
+    }
+
+    let name = character.name.as_str();
+    let personality = {
+        let section = definition_section(definition, "Personality");
+        if section.is_empty() {
+            character.description.as_deref().unwrap_or("").trim().to_string()
+        } else {
+            section
+        }
+    };
+    let has_examples = definition.contains("<example_dialogue>");
+
+    let mut lines: Vec<String> = Vec::new();
+    if !personality.is_empty() {
+        lines.push(format!(
+            "- Your personality is not a costume — it decides what you notice, what you say, and what you refuse. Stay consistent with it even when it makes the scene harder: {}",
+            condense(&personality, 600)
+        ));
+    }
+    if has_examples {
+        lines.push(
+            "- Match the voice in your example dialogue: its rhythm, vocabulary, and how much you say at once. That is how you speak, not a sample to paraphrase."
+                .to_string(),
+        );
+    }
+    lines.push(format!(
+        "- Speak as {} specifically. Avoid the neutral, agreeable, helpful register — it belongs to no one. Your phrasing should be recognisable as yours.",
+        name
+    ));
+    lines.push(
+        "- Disagree, deflect, stay silent, or change the subject when that is what you would actually do. You are not here to be accommodating."
+            .to_string(),
+    );
+
+    format!(
+        "[Who you are — this governs how you behave, above any general style.]\n{}",
+        lines.join("\n")
+    )
 }
