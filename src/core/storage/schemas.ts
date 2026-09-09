@@ -3139,15 +3139,33 @@ export const WorldSettingsSchema = z.object({
   era: z
     .enum([
       "unset",
+      "ancientWorld",
+      "darkAges",
       "medieval",
       "renaissance",
+      "ageOfSail",
+      "sengoku",
+      "edo",
+      "meiji",
+      "taisho",
       "victorian",
+      "wildWest",
+      "worldWar1",
+      "roaringTwenties",
+      "worldWar2",
+      "coldWar",
+      "eighties",
       "modern",
       "nearFuture",
       "cyberpunk",
-      "space",
+      "steampunk",
+      "dieselpunk",
       "postApocalyptic",
+      "space",
+      "solarpunk",
       "highFantasy",
+      "urbanFantasy",
+      "superhero",
     ])
     .default("unset"),
   eraDetail: z.string().default(""),
@@ -3167,6 +3185,13 @@ export const WorldSettingsSchema = z.object({
   moralNeutrality: z.boolean().default(true),
   noReassurance: z.boolean().default(false),
   noOmniscience: z.boolean().default(true),
+
+  /** Where the story currently stands, in the user's own words. */
+  storyPoint: z.string().default(""),
+  /** Treat later events in reference material as not yet happened. */
+  noFutureKnowledge: z.boolean().default(false),
+  /** Characters react as if meeting events for the first time. */
+  firstTimeReactions: z.boolean().default(true),
 
   tone: z.enum(["neutral", "warm", "grim"]).default("neutral"),
   responseLength: z.enum(["brief", "moderate", "detailed"]).default("moderate"),

@@ -116,8 +116,37 @@ export function deriveVoice(source: CharacterVoiceSource): CharacterVoice {
     "Disagree, deflect, stay silent, or change the subject when that is what you would actually do. You are not here to be accommodating.",
   );
 
+  directives.push(...PERFORMANCE_DIRECTIVES);
+
   return { personality, exampleDialogue, authoredInstructions: authored, directives };
 }
+
+/**
+ * The difference between having a trait and performing one.
+ *
+ * A model told a character is funny will reliably end its turn with a quip
+ * about whatever object was last mentioned — "the vending machine is filing a
+ * noise complaint" after a fight beside a vending machine. It reads as forced
+ * because it is: the joke's target is scenery, it was reached for because the
+ * noun was nearby, it is over-constructed, and it sits at the end of the turn
+ * because that is where a closing line goes.
+ *
+ * The same shape spoils every trait. Stoic becomes repeated pointed silence.
+ * Flirty becomes innuendo regardless of the moment. Mysterious becomes cryptic
+ * non-answers. In each case the trait is being demonstrated on a schedule
+ * rather than shaping how the character does ordinary things.
+ *
+ * These are phrased as craft rules rather than prohibitions where possible,
+ * since "be funny but not like that" is not actionable, while "a joke needs a
+ * target and a stake" is.
+ */
+const PERFORMANCE_DIRECTIVES: readonly string[] = [
+  "Your traits show in how you do ordinary things — word choice, what you notice, what you skip, how much you say. Do not demonstrate a trait with a set-piece: no quip, silence, or flourish inserted to prove what you are like.",
+  "Humour needs a target and a stake — a person, the situation, yourself. Do not make observational jokes about nearby objects, scenery, or property damage, and do not reach for the last noun mentioned to build a line around.",
+  "If a line would only exist to be clever, cut it. Say the plain thing instead. Short and flat beats constructed and quippy.",
+  "You are allowed to be unfunny, quiet, blunt, or ordinary in a given moment. A trait is not a quota to fill every turn, and a scene that does not call for it is not a failure.",
+  "Do not end every turn on a closing line. Stopping mid-thought, on something unremarkable, or without a button is usually more natural.",
+];
 
 /** Trim overlong personality text so one field cannot dominate the prompt. */
 function condense(text: string, limit = 600): string {

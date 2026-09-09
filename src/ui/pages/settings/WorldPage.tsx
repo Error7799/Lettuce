@@ -121,6 +121,117 @@ function ChoiceRow<T extends string>({
   );
 }
 
+
+/* ── Era picker ──────────────────────────────────────────────────────────
+ * Grouped rather than one flat row: there are enough settings now that a
+ * single wrapped block of buttons is a wall to scan. The groups are how people
+ * actually look for a period — roughly when, or what kind of story.
+ * ---------------------------------------------------------------------- */
+
+const ERA_GROUPS: readonly { label: string; options: readonly { value: WorldInput["era"]; label: string }[] }[] = [
+  {
+    label: "Historical",
+    options: [
+      { value: "ancientWorld", label: "Ancient world" },
+      { value: "darkAges", label: "Dark Ages" },
+      { value: "medieval", label: "Medieval" },
+      { value: "renaissance", label: "Renaissance" },
+      { value: "ageOfSail", label: "Age of sail" },
+      { value: "victorian", label: "Victorian" },
+      { value: "wildWest", label: "Wild West" },
+      { value: "worldWar1", label: "WWI" },
+      { value: "roaringTwenties", label: "1920s" },
+      { value: "worldWar2", label: "WWII" },
+      { value: "coldWar", label: "Cold War" },
+      { value: "eighties", label: "1980s" },
+      { value: "modern", label: "Modern" },
+    ],
+  },
+  {
+    label: "Japan",
+    options: [
+      { value: "sengoku", label: "Sengoku" },
+      { value: "edo", label: "Edo" },
+      { value: "meiji", label: "Meiji" },
+      { value: "taisho", label: "Taishō" },
+    ],
+  },
+  {
+    label: "Speculative",
+    options: [
+      { value: "nearFuture", label: "Near future" },
+      { value: "cyberpunk", label: "Cyberpunk" },
+      { value: "steampunk", label: "Steampunk" },
+      { value: "dieselpunk", label: "Dieselpunk" },
+      { value: "postApocalyptic", label: "Post-apocalyptic" },
+      { value: "space", label: "Space" },
+      { value: "solarpunk", label: "Solarpunk" },
+      { value: "highFantasy", label: "High fantasy" },
+      { value: "urbanFantasy", label: "Urban fantasy" },
+      { value: "superhero", label: "Superhero" },
+    ],
+  },
+];
+
+function EraPicker({
+  value,
+  onChange,
+}: {
+  value: WorldInput["era"];
+  onChange: (value: WorldInput["era"]) => void;
+}) {
+  const chosen = ERA_GROUPS.flatMap((group) => group.options).find((o) => o.value === value);
+  return (
+    <Card>
+      <div className="text-sm font-medium text-fg">Era</div>
+      <div className="mt-0.5 text-[11px] leading-relaxed text-fg/45">
+        Constrains technology, language and what exists in the world.
+        {chosen ? ` Currently: ${chosen.label}.` : " Nothing chosen."}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => onChange("unset")}
+        className={cn(
+          "mt-3 rounded-lg border px-3 py-2 text-xs font-medium",
+          interactive.transition.fast,
+          value === "unset"
+            ? "border-accent/40 bg-accent/20 text-accent"
+            : "border-fg/10 bg-fg/5 text-fg/60 hover:bg-fg/10 hover:text-fg",
+        )}
+      >
+        Unset
+      </button>
+
+      {ERA_GROUPS.map((group) => (
+        <div key={group.label} className="mt-3">
+          <div className="mb-1.5 px-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-fg/30">
+            {group.label}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {group.options.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => onChange(option.value)}
+                className={cn(
+                  "rounded-lg border px-3 py-2 text-xs font-medium",
+                  interactive.transition.fast,
+                  value === option.value
+                    ? "border-accent/40 bg-accent/20 text-accent"
+                    : "border-fg/10 bg-fg/5 text-fg/60 hover:bg-fg/10 hover:text-fg",
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </Card>
+  );
+}
+
 /* ── Page ────────────────────────────────────────────────────────────────*/
 
 export function WorldPage() {
@@ -251,24 +362,7 @@ export function WorldPage() {
           </Section>
 
           <Section title="Setting">
-            <ChoiceRow
-              label="Era"
-              description="Constrains technology, language and what exists in the world."
-              value={settings.era}
-              onChange={(value) => void patch({ era: value })}
-              options={[
-                { value: "unset", label: "Unset" },
-                { value: "medieval", label: "Medieval" },
-                { value: "renaissance", label: "Renaissance" },
-                { value: "victorian", label: "Victorian" },
-                { value: "modern", label: "Modern" },
-                { value: "nearFuture", label: "Near future" },
-                { value: "cyberpunk", label: "Cyberpunk" },
-                { value: "space", label: "Space" },
-                { value: "postApocalyptic", label: "Post-apocalyptic" },
-                { value: "highFantasy", label: "High fantasy" },
-              ]}
-            />
+            <EraPicker value={settings.era} onChange={(value) => void patch({ era: value })} />
             <Card>
               <div className="text-sm font-medium text-fg">Extra setting detail</div>
               <div className="mt-0.5 text-[11px] leading-relaxed text-fg/45">
@@ -370,6 +464,42 @@ export function WorldPage() {
           </Section>
 
           <Section
+            title="Where the story stands"
+            hint="Lorebooks usually document a whole story while you play an early part of it. This stops the ending leaking into the beginning."
+          >
+            <Card>
+              <div className="text-sm font-medium text-fg">Current point in the story</div>
+              <div className="mt-0.5 text-[11px] leading-relaxed text-fg/45">
+                Describe where things are right now. Anything later than this is treated as not yet
+                written.
+              </div>
+              <textarea
+                value={settings.storyPoint}
+                onChange={(event) => setSettings({ ...settings, storyPoint: event.target.value })}
+                onBlur={(event) => void patch({ storyPoint: event.target.value })}
+                rows={2}
+                placeholder="The Final Selection arc. Seven days on Mount Fujikasane have just begun."
+                className={cn(
+                  "mt-3 w-full resize-y rounded-lg border bg-fg/[0.03] px-3 py-2 text-xs text-fg",
+                  "border-fg/10 placeholder:text-fg/25 focus:border-accent/40 focus:outline-none",
+                )}
+              />
+            </Card>
+            <ToggleRow
+              label="No knowledge of what comes later"
+              description="Characters can't know, hint at, or act on anything from after this point — even when the lorebook describes it. Background still works; future events don't."
+              checked={settings.noFutureKnowledge}
+              onChange={(value) => void patch({ noFutureKnowledge: value })}
+            />
+            <ToggleRow
+              label="React as if for the first time"
+              description="Surprise and wrong guesses are correct when that's what someone standing there would genuinely feel."
+              checked={settings.firstTimeReactions}
+              onChange={(value) => void patch({ firstTimeReactions: value })}
+            />
+          </Section>
+
+          <Section
             title="Neutrality"
             hint="Left alone, models moralise and steer toward comfort. An unbiased world has to be asked for."
           >
@@ -457,7 +587,7 @@ export function WorldPage() {
                 Unlimited keeps the old behaviour.
               </div>
               <div className="mt-3 flex flex-wrap gap-1.5">
-                {([0, 2000, 4000, 8000, 16000] as const).map((value) => (
+                {([0, 2000, 4000, 8000, 16000, 20000, 25000, 30000, 35000] as const).map((value) => (
                   <button
                     key={value}
                     type="button"

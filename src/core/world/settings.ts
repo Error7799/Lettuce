@@ -29,17 +29,47 @@
 
 export type Lethality = "safe" | "realistic" | "harsh" | "lethal";
 export type PlotArmour = "full" | "some" | "none";
+/**
+ * Settings you can pick from.
+ *
+ * The first list was Western and thin — nothing between Victorian and the
+ * present day, and nothing outside Europe and America at all, so a Taishō-era
+ * story (Demon Slayer) had nowhere to sit. Periods that get played a lot are
+ * worth naming individually: "Japan, sort of old" is not a setting a model can
+ * hold, whereas Sengoku, Edo, Meiji and Taishō each carry their own technology,
+ * dress and social order.
+ */
 export type Era =
   | "unset"
+  // Historical
+  | "ancientWorld"
+  | "darkAges"
   | "medieval"
   | "renaissance"
+  | "ageOfSail"
+  | "sengoku"
+  | "edo"
+  | "meiji"
+  | "taisho"
   | "victorian"
+  | "wildWest"
+  | "worldWar1"
+  | "roaringTwenties"
+  | "worldWar2"
+  | "coldWar"
+  | "eighties"
   | "modern"
+  // Speculative
   | "nearFuture"
   | "cyberpunk"
-  | "space"
+  | "steampunk"
+  | "dieselpunk"
   | "postApocalyptic"
-  | "highFantasy";
+  | "space"
+  | "solarpunk"
+  | "highFantasy"
+  | "urbanFantasy"
+  | "superhero";
 export type StatTracking = "off" | "light" | "full";
 export type WorldFocus = "protagonist" | "balanced" | "indifferent";
 export type NarrativeTone = "neutral" | "warm" | "grim";
@@ -85,6 +115,18 @@ export interface WorldSettings {
   /** Characters only know what they could plausibly know. */
   noOmniscience: boolean;
 
+  /* Story position — where in the timeline this is being played */
+  /** Free text: where the story currently stands. */
+  storyPoint: string;
+  /**
+   * Treat anything in reference material describing later events as not yet
+   * happened. This is the fix for lorebooks that document a whole story while
+   * you are playing an early part of it.
+   */
+  noFutureKnowledge: boolean;
+  /** Characters meet events as if for the first time — no weary foreknowledge. */
+  firstTimeReactions: boolean;
+
   /* Craft */
   tone: NarrativeTone;
   responseLength: ResponseLength;
@@ -113,6 +155,9 @@ export const DEFAULT_WORLD_SETTINGS: WorldSettings = {
   moralNeutrality: true,
   noReassurance: false,
   noOmniscience: true,
+  storyPoint: "",
+  noFutureKnowledge: false,
+  firstTimeReactions: true,
   tone: "neutral",
   responseLength: "moderate",
   pacing: "steady",
@@ -138,15 +183,50 @@ const PLOT_ARMOUR_TEXT: Record<PlotArmour, string> = {
 };
 
 const ERA_TEXT: Record<Exclude<Era, "unset">, string> = {
+  ancientWorld:
+    "the ancient world — bronze and iron, city-states and empires, oral rumour rather than written news",
+  darkAges:
+    "the early medieval period — post-imperial, raiding and petty kingdoms, monasteries holding what literacy survives",
   medieval: "a medieval setting — pre-gunpowder, feudal, lit by fire",
   renaissance: "a Renaissance-era setting — early firearms, city-states, patronage and guilds",
+  ageOfSail:
+    "the age of sail — wooden ships and canvas, colonies and privateers, months between a message and its answer",
+  sengoku:
+    "Sengoku-period Japan — warring states, samurai and ashigaru, castles and shifting allegiances, matchlock guns newly arrived",
+  edo: "Edo-period Japan — Tokugawa peace, a closed country, rigid class order, castle towns and travelling merchants",
+  meiji:
+    "Meiji-era Japan — rapid Westernisation, swords newly banned, railways and telegraph arriving over an older order",
+  taisho:
+    "Taishō-era Japan (1912–1926) — Western dress alongside kimono, streetcars and gas lamps giving way to electric light, cities modernising while the countryside stays traditional and superstition still has weight",
   victorian: "a Victorian-era setting — industrial, gaslit, steam and telegraph",
+  wildWest:
+    "the American frontier — revolvers and rail, cattle towns, thin law and long distances",
+  worldWar1:
+    "the First World War era — trenches and artillery, empires collapsing, early aircraft and telephones",
+  roaringTwenties:
+    "the 1920s — jazz and prohibition, motorcars and radio, new money and organised crime",
+  worldWar2:
+    "the Second World War era — mechanised war, rationing and occupation, radio and cinema newsreels",
+  coldWar:
+    "the Cold War — nuclear standoff, espionage and proxy conflicts, landlines and typewriters",
+  eighties:
+    "the 1980s — analogue and neon, payphones and cassettes, no internet and no way to reach someone who has left the house",
   modern: "the present day",
   nearFuture: "the near future — recognisable, with technology a step beyond today's",
   cyberpunk: "a cyberpunk setting — dense cities, corporate power, cybernetics, pervasive networks",
-  space: "a spacefaring setting — ships, stations, and travel between worlds",
+  steampunk:
+    "a steampunk setting — steam and clockwork pushed far past history, airships and brass machinery",
+  dieselpunk:
+    "a dieselpunk setting — diesel and steel, art-deco cities, industrial might and early-century grime",
   postApocalyptic: "a post-apocalyptic setting — scarcity, ruins, salvage, fragile settlements",
+  space: "a spacefaring setting — ships, stations, and travel between worlds",
+  solarpunk:
+    "a solarpunk setting — renewable technology woven into greenery, communal infrastructure, repair over replacement",
   highFantasy: "a high fantasy setting — magic, non-human peoples, and mythic scale",
+  urbanFantasy:
+    "an urban fantasy setting — the present day with magic real but largely hidden from ordinary people",
+  superhero:
+    "a superhero setting — extraordinary powers in a recognisable modern world, with the public consequences that brings",
 };
 
 const FOCUS_TEXT: Record<WorldFocus, string> = {
@@ -251,6 +331,56 @@ function neutralityLines(settings: WorldSettings): string[] {
   return lines;
 }
 
+/**
+ * Where in the story this is being played, and what that means for knowledge.
+ *
+ * This exists because reference material almost always documents a whole story
+ * while you play an early part of it. A Demon Slayer lorebook describes every
+ * arc; if you are playing Final Selection, the characters around you must not
+ * know about Hashira they have never met or a war that has not started. Left
+ * alone the model reads its whole context as equally true *now* and leaks the
+ * ending into the beginning.
+ *
+ * The wording separates two things the model otherwise conflates:
+ *
+ *   Background — who people are, how the world works. Still usable.
+ *   Later events — what happens after this point. Not yet real.
+ *
+ * That distinction is stated explicitly, because the failure mode of a blunt
+ * "ignore the lorebook" instruction is a model that also forgets who everyone
+ * is, which is worse than the leak it was meant to fix.
+ */
+function storyPointLines(settings: WorldSettings): string[] {
+  const point = settings.storyPoint.trim();
+  const lines: string[] = [];
+
+  if (point) {
+    lines.push(`The story is currently at: ${point}`);
+  }
+
+  if (settings.noFutureKnowledge) {
+    lines.push(
+      point
+        ? "Reference material may describe events from later than this point. Those events have not happened yet. Treat them as unwritten future, not as history."
+        : "Reference material may describe events from later than the current scene. Anything that has not yet happened in this conversation has not happened yet.",
+    );
+    lines.push(
+      "No character knows, hints at, foreshadows, or acts on anything from after this point — not their own later choices, not who someone turns out to be, not how a conflict resolves.",
+    );
+    lines.push(
+      "Use that material for background only: who people already are, established relationships, and how the world works. Do not use it to know what comes next.",
+    );
+  }
+
+  if (settings.firstTimeReactions) {
+    lines.push(
+      "Characters meet what happens as if for the first time. Surprise, mistaken assumptions, and wrong guesses are correct when that is what someone standing there would genuinely feel.",
+    );
+  }
+
+  return lines;
+}
+
 /** Build the structured sections. Exposed so the UI can preview them. */
 export function compileWorldSections(settings: WorldSettings): WorldSection[] {
   if (!settings.enabled) return [];
@@ -281,6 +411,9 @@ export function compileWorldSections(settings: WorldSettings): WorldSection[] {
       : "",
   ]);
 
+  // Before Neutrality: what is *true right now* has to be settled before rules
+  // about how to narrate it.
+  push("Where the story stands", storyPointLines(settings));
   push("Neutrality", neutralityLines(settings));
   push("Tracking", statLines(settings));
 

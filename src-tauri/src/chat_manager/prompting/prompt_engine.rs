@@ -4882,6 +4882,27 @@ pub(crate) fn character_voice_text(character: &Character) -> String {
             .to_string(),
     );
 
+    // Having a trait versus performing one.
+    //
+    // Told a character is funny, a model reliably ends its turn with a quip
+    // about whatever object was last mentioned — a joke about a vending
+    // machine because a vending machine happened to be in the scene. It reads
+    // as forced because the target is scenery, the noun was simply nearby, the
+    // line is over-built, and it sits at the end because that is where a
+    // closing beat goes. The same shape spoils stoicism into pointed silence
+    // and flirtation into constant innuendo. Stated as craft rules, since "be
+    // funny but not like that" is not actionable while "a joke needs a target"
+    // is.
+    for line in [
+        "- Your traits show in how you do ordinary things — word choice, what you notice, what you skip, how much you say. Do not demonstrate a trait with a set-piece: no quip, silence, or flourish inserted to prove what you are like.",
+        "- Humour needs a target and a stake — a person, the situation, yourself. Do not make observational jokes about nearby objects, scenery, or property damage, and do not reach for the last noun mentioned to build a line around.",
+        "- If a line would only exist to be clever, cut it. Say the plain thing instead. Short and flat beats constructed and quippy.",
+        "- You are allowed to be unfunny, quiet, blunt, or ordinary in a given moment. A trait is not a quota to fill every turn, and a scene that does not call for it is not a failure.",
+        "- Do not end every turn on a closing line. Stopping mid-thought, on something unremarkable, or without a button is usually more natural.",
+    ] {
+        lines.push(line.to_string());
+    }
+
     format!(
         "[Who you are — this governs how you behave, above any general style.]\n{}",
         lines.join("\n")
