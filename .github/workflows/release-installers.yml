@@ -93,14 +93,41 @@ jobs:
         run: npm ci
 
       - name: Build installer
+        id: build
         shell: bash
         # Ad-hoc signature on macOS. Not an Apple Developer identity, so the
         # download still carries a quarantine flag — the release notes say how
         # to clear it. Without even the ad-hoc signature, Apple Silicon refuses
         # to launch the binary at all.
+        #
+        # Output is teed to a file so a failure can be published as a release
+        # asset below. Actions logs need an authenticated session to read even
+        # on a public repository, which makes a failing job opaque to anyone
+        # not signed in — including when asking for help with it.
         env:
           APPLE_SIGNING_IDENTITY: ${{ startsWith(matrix.platform, 'macos') && '-' || '' }}
-        run: npm run tauri build -- --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+        run: |
+          set -o pipefail
+          npm run tauri build -- --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} 2>&1 | tee build.log
+
+      # Runs only when the build failed, and does not itself fail the job.
+      - name: Publish the failure log
+        if: failure() && steps.build.outcome == 'failure'
+        shell: bash
+        run: |
+          mkdir -p failure-logs
+          # The tail is what matters and keeps the asset small.
+          tail -c 200000 build.log > "failure-logs/build-failure-${{ matrix.target }}.log"
+          echo "--- last 40 lines ---"
+          tail -40 build.log
+
+      - name: Attach the failure log to the release
+        if: failure() && steps.build.outcome == 'failure'
+        uses: softprops/action-gh-release@v2
+        continue-on-error: true
+        with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          files: failure-logs/build-failure-${{ matrix.target }}.log
 
       - name: List what was produced
         shell: bash
