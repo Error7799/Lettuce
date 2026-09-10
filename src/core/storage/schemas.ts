@@ -3193,6 +3193,17 @@ export const WorldSettingsSchema = z.object({
   /** Characters react as if meeting events for the first time. */
   firstTimeReactions: z.boolean().default(true),
 
+  /** Stop the reply at the first point the user could react. */
+  turnBasedAction: z.boolean().default(false),
+  /** How much an opponent may do before the reply must stop. */
+  actionScope: z.enum(["beat", "exchange", "free"]).default("beat"),
+  /** Every declared action is weighed against logic, never automatic. */
+  weighActions: z.boolean().default(false),
+  /** Opponents use only what they learned in the story, not author knowledge. */
+  knowledgeFirewall: z.boolean().default(false),
+  /** Stamina, armour, injuries and skill level govern outcomes. */
+  realisticResolution: z.boolean().default(false),
+
   tone: z.enum(["neutral", "warm", "grim"]).default("neutral"),
   responseLength: z.enum(["brief", "moderate", "detailed"]).default("moderate"),
   pacing: z.enum(["fast", "steady", "slow"]).default("steady"),

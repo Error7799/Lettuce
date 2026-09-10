@@ -75,6 +75,7 @@ export type WorldFocus = "protagonist" | "balanced" | "indifferent";
 export type NarrativeTone = "neutral" | "warm" | "grim";
 export type ResponseLength = "brief" | "moderate" | "detailed";
 export type Pacing = "fast" | "steady" | "slow";
+export type ActionScope = "beat" | "exchange" | "free";
 
 export interface WorldSettings {
   enabled: boolean;
@@ -127,6 +128,21 @@ export interface WorldSettings {
   /** Characters meet events as if for the first time — no weary foreknowledge. */
   firstTimeReactions: boolean;
 
+  /* Action and turns */
+  /** Stop at the first moment the user could react, rather than resolving a whole sequence. */
+  turnBasedAction: boolean;
+  /** How much an opponent may do before the reply must stop. */
+  actionScope: ActionScope;
+  /**
+   * Every declared action is an intent resolved against logic — never an
+   * automatic success just because it was stated plainly.
+   */
+  weighActions: boolean;
+  /** Opponents may only use what they have learned in the story, not author knowledge. */
+  knowledgeFirewall: boolean;
+  /** Bodies tire, armour slows, wounds impair; skill level shows in how people fight. */
+  realisticResolution: boolean;
+
   /* Craft */
   tone: NarrativeTone;
   responseLength: ResponseLength;
@@ -158,6 +174,11 @@ export const DEFAULT_WORLD_SETTINGS: WorldSettings = {
   storyPoint: "",
   noFutureKnowledge: false,
   firstTimeReactions: true,
+  turnBasedAction: false,
+  actionScope: "beat",
+  weighActions: false,
+  knowledgeFirewall: false,
+  realisticResolution: false,
   tone: "neutral",
   responseLength: "moderate",
   pacing: "steady",
@@ -381,6 +402,86 @@ function storyPointLines(settings: WorldSettings): string[] {
   return lines;
 }
 
+
+/**
+ * Turn structure in a fight.
+ *
+ * The failure this fixes: asked to narrate an attack, a model writes the whole
+ * sequence — crouch, leap to the rooftop, take aim, fire — and only then stops.
+ * Every joint in that chain was a moment the player could have moved, and they
+ * were given none of them. Worse, to keep the sequence coherent the model
+ * narrates the player standing still through it ("You keep walking"), which
+ * takes the one thing that is not the model's to decide.
+ *
+ * So the rule is about where a reply STOPS, not how much detail it has. The
+ * scene can still be vivid; it has to end while the outcome is still open.
+ */
+const ACTION_SCOPE_TEXT: Record<ActionScope, string> = {
+  beat: "One action per reply. An opponent commits to a single thing, and the reply ends while its outcome is still open.",
+  exchange:
+    "A short exchange per reply — a move and its immediate answer — but stop before anything the user would obviously want to respond to.",
+  free: "Narrate as far as the scene naturally runs.",
+};
+
+function actionLines(settings: WorldSettings): string[] {
+  const lines: string[] = [];
+
+  if (settings.turnBasedAction) {
+    lines.push(
+      "End your reply at the first moment the user could act. Narrate a threat up to the point it is committed — in motion, mid-air, about to land — and stop there rather than through to its result.",
+    );
+    lines.push(ACTION_SCOPE_TEXT[settings.actionScope]);
+    lines.push(
+      "Do not chain several distinct actions together. A move with stages — crouching, leaping, taking position, releasing — is several turns, not one.",
+    );
+    // The part models get wrong most: filling the player's silence themselves.
+    lines.push(
+      "Never narrate what the user's character does, thinks, feels, or fails to do in response. Do not write them standing still, watching, hesitating, or being too slow. Leave that space empty for them to fill.",
+    );
+  }
+
+  if (settings.weighActions) {
+    // Deliberately NOT "plain statements stand". Stating an action confidently
+    // is not evidence it works; treating it as binding just relocates plot
+    // armour into the player's phrasing.
+    lines.push(
+      "Everything the user declares is an intent, not a result. Resolve it against what their character has actually demonstrated, their physical limits, their current condition, the distance and timing involved, and whatever opposes them.",
+    );
+    lines.push(
+      'Writing "try" marks deliberate uncertainty, but its absence never guarantees success. A confidently stated action is still only an attempt.',
+    );
+    lines.push(
+      "Say plainly whether it works, partly works, or fails — and what it costs. Do not leave the outcome vague, and do not grant it because it would be satisfying.",
+    );
+  }
+
+  if (settings.knowledgeFirewall) {
+    lines.push(
+      "Keep your knowledge as narrator strictly separate from what each character knows. You can see the user's weaknesses, fears and limits written down; the characters cannot.",
+    );
+    lines.push(
+      "An opponent knows nothing about the user's hidden weaknesses, fears or physical limitations unless they learned it earlier in this story — by being told, by seeing it, or by fighting them before.",
+    );
+    lines.push(
+      "Opponents work out weaknesses during the fight, the way a real fighter would: probing the defence, watching which side is favoured, noticing what is avoided, and pressing whatever mistake is made. Show that discovery happening rather than assuming it.",
+    );
+  }
+
+  if (settings.realisticResolution) {
+    lines.push(
+      "Decide every attack and counter by comparing the two sides honestly — strength, speed, reach, equipment, training and experience — rather than by what suits the scene.",
+    );
+    lines.push(
+      "Skill shows in how someone fights. An inexperienced thug is clumsy, telegraphs, and repeats himself. A trained killer feints, controls distance, and sets up a strike two moves before it lands.",
+    );
+    lines.push(
+      "Bodies obey physics and keep score. Stamina drains over a long fight, heavy armour costs agility, and an injury impairs what follows — a wounded arm makes weaker strikes, a hurt leg makes slower movement. Carry those costs forward instead of resetting each turn.",
+    );
+  }
+
+  return lines;
+}
+
 /** Build the structured sections. Exposed so the UI can preview them. */
 export function compileWorldSections(settings: WorldSettings): WorldSection[] {
   if (!settings.enabled) return [];
@@ -414,6 +515,7 @@ export function compileWorldSections(settings: WorldSettings): WorldSection[] {
   // Before Neutrality: what is *true right now* has to be settled before rules
   // about how to narrate it.
   push("Where the story stands", storyPointLines(settings));
+  push("Turns and actions", actionLines(settings));
   push("Neutrality", neutralityLines(settings));
   push("Tracking", statLines(settings));
 

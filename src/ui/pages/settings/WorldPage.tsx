@@ -500,6 +500,51 @@ export function WorldPage() {
           </Section>
 
           <Section
+            title="Turns and actions"
+            hint="Stops the AI resolving a whole attack sequence while you just watch. It ends its reply while the outcome is still open, so you get to answer."
+          >
+            <ToggleRow
+              label="Turn-based action"
+              description="The AI stops at the first moment you could react — a strike mid-swing, a leap still in the air — instead of narrating through to the result. It also stops writing what your character does in response."
+              checked={settings.turnBasedAction}
+              onChange={(value) => void patch({ turnBasedAction: value })}
+            />
+            {settings.turnBasedAction ? (
+              <ChoiceRow
+                label="How much per reply"
+                description="How far the AI may take a scene before handing it back to you."
+                value={settings.actionScope}
+                onChange={(value) => void patch({ actionScope: value })}
+                options={[
+                  { value: "beat", label: "One action", hint: "An opponent commits to a single thing, then it's your move." },
+                  { value: "exchange", label: "Short exchange", hint: "A move and its immediate answer, then it stops." },
+                  { value: "free", label: "Free", hint: "The scene runs as far as it naturally goes." },
+                ]}
+              />
+            ) : null}
+            <ToggleRow
+              label="Actions are attempts, not results"
+              description={
+                "Everything you write is weighed against what your character can actually do — writing “I catch it” does not make it happen. Saying “I try” marks uncertainty, but leaving it out never guarantees success."
+              }
+              checked={settings.weighActions}
+              onChange={(value) => void patch({ weighActions: value })}
+            />
+            <ToggleRow
+              label="Knowledge firewall"
+              description="Opponents don't know your weaknesses, fears or limits unless they learned them in the story. They have to work them out mid-fight — probing your defence, watching which side you favour, pressing your mistakes."
+              checked={settings.knowledgeFirewall}
+              onChange={(value) => void patch({ knowledgeFirewall: value })}
+            />
+            <ToggleRow
+              label="Realistic resolution"
+              description="Fights are decided by comparing strength, speed, reach, gear and training. Stamina drains, armour costs agility, and a wounded arm keeps making weaker strikes."
+              checked={settings.realisticResolution}
+              onChange={(value) => void patch({ realisticResolution: value })}
+            />
+          </Section>
+
+          <Section
             title="Neutrality"
             hint="Left alone, models moralise and steer toward comfort. An unbiased world has to be asked for."
           >
