@@ -57,12 +57,24 @@ pub struct WikiPage {
     pub missing: bool,
 }
 
-fn client() -> Result<reqwest::Client, String> {
-    reqwest::Client::builder()
-        .user_agent(USER_AGENT)
-        .timeout(TIMEOUT)
-        .build()
-        .map_err(|e| format!("Could not start an HTTP client: {e}"))
+/// One client for the whole module.
+///
+/// Built once rather than per request: a single scope scan makes dozens of
+/// calls — the category listing, paged wikitext fetches, then thumbnails — and
+/// a fresh client each time throws away the connection pool and redoes the TLS
+/// handshake for every one of them.
+fn client() -> Result<&'static reqwest::Client, String> {
+    static CLIENT: std::sync::OnceLock<Result<reqwest::Client, String>> = std::sync::OnceLock::new();
+    CLIENT
+        .get_or_init(|| {
+            reqwest::Client::builder()
+                .user_agent(USER_AGENT)
+                .timeout(TIMEOUT)
+                .build()
+                .map_err(|e| format!("Could not start an HTTP client: {e}"))
+        })
+        .as_ref()
+        .map_err(|e| e.clone())
 }
 
 async fn call(api: &str, params: &[(&str, &str)]) -> Result<serde_json::Value, String> {

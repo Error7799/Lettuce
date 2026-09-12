@@ -136,9 +136,11 @@ export function DiscoveryCardDetailPage() {
           console.error("Failed to load tags:", err);
         }
 
-        // Fetch author info from backend
+        // Author info comes from a character-tavern-only endpoint, so it is
+        // only asked for where it can answer. Everywhere else it returned a 404
+        // for every card opened.
         const authorName = getAuthorName(response.card.author, response.card.path);
-        if (authorName && authorName !== "Anonymous") {
+        if (provider.supportsAuthorInfo && authorName && authorName !== "Anonymous") {
           try {
             const authorData = await fetchAuthorInfo(authorName);
             setAuthorInfo(authorData);
@@ -155,7 +157,9 @@ export function DiscoveryCardDetailPage() {
     };
 
     loadCard();
-  }, [path, t]);
+    // `provider` decides whether author info is even asked for, so a source
+    // switch has to re-run this rather than keep the previous source's answer.
+  }, [path, t, provider]);
 
   const handleBack = useCallback(() => {
     const stateFrom = (location.state as { from?: string } | null | undefined)?.from || undefined;

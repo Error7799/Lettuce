@@ -63,6 +63,15 @@ export interface DiscoveryProvider {
   requiresAuth?: boolean;
   /** Whether `BrowseQuery.creator` actually filters on this source. */
   supportsCreatorBrowse?: boolean;
+  /**
+   * Whether `discovery_fetch_author_info` can answer for this source.
+   *
+   * That command is hard-wired to character-tavern.com/api/author, so asking it
+   * about anyone else is a guaranteed 404 — one per card opened, which in a
+   * browsing session ran to a hundred failed requests and a matching wall of
+   * console errors.
+   */
+  supportsAuthorInfo?: boolean;
 
   browse(query: BrowseQuery, signal?: AbortSignal): Promise<BrowseResult>;
 

@@ -33,6 +33,7 @@ export const characterTavernProvider: DiscoveryProvider = {
   label: "Character Tavern",
   description: "LettuceAI's built-in catalogue.",
   homepage: SITE_BASE,
+  supportsAuthorInfo: true,
 
   async browse(query: BrowseQuery): Promise<BrowseResult> {
     // The backend has separate list and search paths; a search term picks the
