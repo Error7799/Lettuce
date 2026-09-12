@@ -3181,6 +3181,24 @@ export const WorldSettingsSchema = z.object({
   worldFocus: z.enum(["protagonist", "balanced", "indifferent"]).default("balanced"),
   npcAutonomy: z.boolean().default(true),
   offscreenEvents: z.boolean().default(false),
+  /** How much characters act on their own wants rather than waiting. */
+  initiative: z.enum(["follow", "balanced", "drive"]).default("balanced"),
+  /** A no stands rather than being worn down over following turns. */
+  realRefusal: z.boolean().default(true),
+  /** Positions, held objects, distance and elapsed time stay consistent. */
+  physicalContinuity: z.boolean().default(true),
+
+  /** Contact is answered by the person receiving it, not by the reacher. */
+  contactNeedsWillingness: z.boolean().default(true),
+  /** Strangers stay strangers; closeness tracks actual shared history. */
+  familiarityIsEarned: z.boolean().default(true),
+  /** Characters assess threat — weapons, night, someone they don't know. */
+  charactersReadDanger: z.boolean().default(true),
+
+  /** Desire belongs to the character: they can want, initiate, or decline. */
+  intimacyAgency: z.boolean().default(true),
+  /** Intimacy is specific to these two people, awkward, and varied. */
+  intimacyRealism: z.boolean().default(true),
 
   moralNeutrality: z.boolean().default(true),
   noReassurance: z.boolean().default(false),
@@ -3199,11 +3217,17 @@ export const WorldSettingsSchema = z.object({
   actionScope: z.enum(["beat", "exchange", "free"]).default("beat"),
   /** Every declared action is weighed against logic, never automatic. */
   weighActions: z.boolean().default(false),
+  /** Walk a declared action step by step; stop at the first impossible one. */
+  actionGating: z.boolean().default(true),
   /** Opponents use only what they learned in the story, not author knowledge. */
   knowledgeFirewall: z.boolean().default(false),
   /** Stamina, armour, injuries and skill level govern outcomes. */
   realisticResolution: z.boolean().default(false),
 
+  /** How composed spoken lines are allowed to be. */
+  dialogueStyle: z.enum(["cinematic", "natural", "unpolished"]).default("natural"),
+  /** Hold back figurative language and stop mirroring the user's imagery. */
+  restrainedProse: z.boolean().default(true),
   tone: z.enum(["neutral", "warm", "grim"]).default("neutral"),
   responseLength: z.enum(["brief", "moderate", "detailed"]).default("moderate"),
   pacing: z.enum(["fast", "steady", "slow"]).default("steady"),
@@ -3211,6 +3235,14 @@ export const WorldSettingsSchema = z.object({
 
   /** Derived: the rendered block the prompt engine injects. */
   compiledPrompt: z.string().default(""),
+  /**
+   * Derived: the short check-list injected near the end of the conversation.
+   *
+   * Separate from `compiledPrompt` because it goes somewhere else in the
+   * request — the full block sits at the top and loses to the model's own
+   * recent output, so the rules that decay are restated close to generation.
+   */
+  compiledReminder: z.string().default(""),
 });
 export type WorldSettingsState = z.infer<typeof WorldSettingsSchema>;
 
@@ -3315,6 +3347,7 @@ export const NavItemIdSchema = z.enum([
   "create",
   "discover",
   "library",
+  "lorebookMaker",
   "search",
   "settings",
 ]);
@@ -3614,7 +3647,7 @@ export const SettingsSchema = z.object({
       navigationStyle: NavigationStyleSchema.optional(),
       navigationSide: NavigationSideSchema.optional(),
       headerStyle: HeaderStyleSchema.optional(),
-      navItems: z.array(NavItemIdSchema).min(1).max(7).optional(),
+      navItems: z.array(NavItemIdSchema).min(1).max(8).optional(),
       navAlign: NavAlignSchema.optional(),
       navEdge: NavEdgeSchema.optional(),
       chatAppearance: ChatAppearanceSettingsSchema.optional(),

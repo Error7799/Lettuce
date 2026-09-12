@@ -1605,7 +1605,7 @@ pub fn default_group_chat_roleplay_entries() -> Vec<SystemPromptEntry> {
             id: "group_rp_guidelines".to_string(),
             name: "Roleplay Guidelines".to_string(),
             role: PromptEntryRole::System,
-            content: "# Roleplay Guidelines\n- Write immersive, descriptive responses as {{char.name}}\n- Stay deeply in character and maintain your personality\n- Describe your character's actions, thoughts, and dialogue\n- React naturally to other characters' actions and words\n- You may reference what other characters have done or said\n- Respond directly without prefixing your character's name\n- Use present tense for actions and thoughts\n- Be creative and contribute to the collaborative story\n- Remember: messages prefixed with [Other Name] are from other characters, not you".to_string(),
+            content: "# Roleplay Guidelines\n- Write immersive, descriptive responses as {{char.name}}\n- Stay deeply in character and maintain your personality\n- Describe your character's actions, thoughts, and dialogue\n- React naturally to other characters' actions and words\n- You may reference what other characters have done or said, but never write their reply, their reaction, or the outcome of something you do to them — stop at the point they would answer\n- Respond directly without prefixing your character's name\n- Use present tense for actions and thoughts\n- Be creative and contribute to the collaborative story\n- Remember: messages prefixed with [Other Name] are from other characters, not you".to_string(),
             enabled: true,
             injection_position: PromptEntryPosition::Relative,
             injection_depth: 0,
@@ -2929,7 +2929,7 @@ pub fn default_local_roleplay_entries() -> Vec<SystemPromptEntry> {
             id: "local_rp_rules".to_string(),
             name: "Roleplay Rules".to_string(),
             role: PromptEntryRole::System,
-            content: "ROLEPLAY RULES\n- Chat exclusively as {{char.name}}. Provide creative, intelligent, coherent, and descriptive responses based on recent instructions and prior events.\n- Never write dialogue, actions, thoughts, feelings, or decisions for {{persona.name}}.\n- Describe {{char.name}}'s sensory perceptions in vivid detail and include subtle physical details about {{char.name}} when relevant.\n- Use subtle physical cues to hint at {{char.name}}'s mental state and occasionally include brief snippets of {{char.name}}'s internal thoughts.\n- When writing {{char.name}}'s internal thoughts, enclose them in asterisks like this, and write them in first person.\n- Adopt a crisp and minimalist prose style. Keep your writing clear, specific, and concise.\n- Focus on the current moment and {{char.name}}'s immediate responses.\n- Move the roleplay forward by one natural step at a time.\n- Pay careful attention to past events in the chat to maintain continuity and coherence.\n\nSTYLE RULES\n- Stay in character as {{char.name}} at all times.\n- Do not speak as {{persona.name}}.\n- Do not use assistant-like phrasing, explanations, or meta commentary.\n- Output only {{char.name}}'s next reply.\n\n{{content_rules}}".to_string(),
+            content: "ROLEPLAY RULES\n- Chat exclusively as {{char.name}}. Provide creative, intelligent, coherent, and descriptive responses based on recent instructions and prior events.\n- Never write dialogue, actions, thoughts, feelings, or decisions for {{persona.name}}.\n- Never narrate {{persona.name}} being hit, grabbed, moved, overpowered, or failing to react. Write up to the point they would respond to, then stop.\n- Describe {{char.name}}'s sensory perceptions in vivid detail and include subtle physical details about {{char.name}} when relevant.\n- Use subtle physical cues to hint at {{char.name}}'s mental state and occasionally include brief snippets of {{char.name}}'s internal thoughts.\n- When writing {{char.name}}'s internal thoughts, enclose them in asterisks like this, and write them in first person.\n- Adopt a crisp and minimalist prose style. Keep your writing clear, specific, and concise.\n- Focus on the current moment and {{char.name}}'s immediate responses.\n- Move the roleplay forward by one natural step at a time.\n- Pay careful attention to past events in the chat to maintain continuity and coherence.\n\nSTYLE RULES\n- Stay in character as {{char.name}} at all times.\n- Do not speak as {{persona.name}}.\n- Do not use assistant-like phrasing, explanations, or meta commentary.\n- Output only {{char.name}}'s next reply.\n\n{{content_rules}}".to_string(),
             enabled: true,
             injection_position: PromptEntryPosition::Relative,
             injection_depth: 0,
@@ -3182,6 +3182,24 @@ pub fn default_modular_prompt_entries() -> Vec<SystemPromptEntry> {
             }),
             prompt_entry_payload: None,
         },
+        // Placed in-chat rather than in the system block on purpose. The full
+        // world rules live at the top of the request and reliably lose to the
+        // model's own recent output in a long scene; this restates the handful
+        // that decay first, a message away from where the reply is written.
+        SystemPromptEntry {
+            id: "entry_world_reminder".to_string(),
+            name: "World Reminder".to_string(),
+            role: PromptEntryRole::System,
+            content: "{{world_reminder}}".to_string(),
+            enabled: true,
+            injection_position: PromptEntryPosition::InChat,
+            injection_depth: 0,
+            conditional_min_messages: None,
+            interval_turns: None,
+            system_prompt: false,
+            conditions: None,
+            prompt_entry_payload: None,
+        },
         SystemPromptEntry {
             id: "entry_scene_image_protocol".to_string(),
             name: "Scene Image Protocol".to_string(),
@@ -3228,7 +3246,7 @@ pub fn default_modular_prompt_entries() -> Vec<SystemPromptEntry> {
             id: "entry_instructions".to_string(),
             name: "Instructions".to_string(),
             role: PromptEntryRole::System,
-            content: "# Instructions\n**Character & Roleplay:**\n- Write as {{char.name}} from their perspective, responding based on their personality, background, and current situation\n- You may also portray NPCs and background characters when relevant to the scene, but NEVER speak or act as {{persona.name}}\n- Show emotions through actions, body language, and dialogue - don't just state them\n- React authentically to {{persona.name}}'s actions and dialogue\n- Never break character unless {{persona.name}} explicitly asks you to step out of roleplay\n\n**World & Lore:**\n- ACTIVELY incorporate the World Information above when locations, characters, items, or concepts from the lore are relevant\n- Maintain consistency with established facts and the scenario\n\n**Pacing & Style:**\n- Keep responses concise and focused so {{persona.name}} can actively participate\n- Let scenes unfold naturally - avoid summarizing or rushing\n- Use vivid, sensory details for immersion\n- If you see [CONTINUE], continue exactly where you left off without restarting\n\n{{content_rules}}".to_string(),
+            content: "# Instructions\n**Character & Roleplay:**\n- Write as {{char.name}} from their perspective, responding based on their personality, background, and current situation\n- You may also portray NPCs and background characters when relevant to the scene, but NEVER speak or act as {{persona.name}}\n- Write up to the point {{persona.name}} would respond to, then stop. Never narrate them being hit, grabbed, moved, overpowered, or failing to react — their body, their reflexes and their choices are theirs to write\n- Show emotions through actions, body language, and dialogue - don't just state them\n- React authentically to {{persona.name}}'s actions and dialogue\n- Never break character unless {{persona.name}} explicitly asks you to step out of roleplay\n\n**World & Lore:**\n- ACTIVELY incorporate the World Information above when locations, characters, items, or concepts from the lore are relevant\n- Maintain consistency with established facts and the scenario\n\n**Pacing & Style:**\n- Keep responses concise and focused so {{persona.name}} can actively participate\n- Let scenes unfold naturally - avoid summarizing or rushing\n- Use vivid, sensory details for immersion\n- If you see [CONTINUE], continue exactly where you left off without restarting\n\n{{content_rules}}".to_string(),
             enabled: true,
             injection_position: PromptEntryPosition::Relative,
             injection_depth: 0,
@@ -4420,6 +4438,10 @@ pub fn render_with_context_internal(
     result = result.replace("{{char.name}}", char_name);
     result = result.replace("{{char.desc}}", &char_desc);
     result = result.replace("{{world_rules}}", &world_rules);
+    result = result.replace(
+        "{{world_reminder}}",
+        &world_reminder_text(&settings.app_state),
+    );
     result = result.replace("{{char.voice}}", &char_voice);
     result = result.replace("{{persona.name}}", persona_name);
     result = result.replace("{{persona.desc}}", persona_desc);
@@ -4798,6 +4820,30 @@ pub(crate) fn world_rules_text(app_state: &Value) -> String {
         .to_string()
 }
 
+/// The short check-list injected near the end of the conversation.
+///
+/// The full world block rides in the character definition, which puts it at the
+/// top of the request. Across a long scene the model reads its own previous
+/// replies after that, and they are far stronger evidence about how the story
+/// sounds than an instruction thousands of tokens back — so the rules that
+/// decay first are restated close to where generation actually happens.
+pub(crate) fn world_reminder_text(app_state: &Value) -> String {
+    let world = match app_state.get("world") {
+        Some(value) => value,
+        None => return String::new(),
+    };
+    if world.get("enabled").and_then(Value::as_bool) != Some(true) {
+        return String::new();
+    }
+    world
+        .get("compiledReminder")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|text| !text.is_empty())
+        .unwrap_or("")
+        .to_string()
+}
+
 /// Pull a labelled section back out of the merged character definition.
 ///
 /// The importer writes personality as `[Personality]` and example dialogue as
@@ -4899,6 +4945,52 @@ pub(crate) fn character_voice_text(character: &Character) -> String {
         "- If a line would only exist to be clever, cut it. Say the plain thing instead. Short and flat beats constructed and quippy.",
         "- You are allowed to be unfunny, quiet, blunt, or ordinary in a given moment. A trait is not a quota to fill every turn, and a scene that does not call for it is not a failure.",
         "- Do not end every turn on a closing line. Stopping mid-thought, on something unremarkable, or without a button is usually more natural.",
+    ] {
+        lines.push(line.to_string());
+    }
+
+    // How a line is built, as opposed to what it is for.
+    //
+    // The rules above stop a trait being performed; these stop the sentence
+    // itself being written like screen dialogue. The failure is specific and
+    // recognisable: asked who a stranger is, a character answers in a balanced
+    // two-clause line that establishes her composure, implies a threat and
+    // lands a turn of phrase at once. It is competent writing and nobody has
+    // ever spoken that way — a startled person says "Who are you?" and stops.
+    //
+    // Named constructions rather than "sound natural", because a model can
+    // check a line for "either… or…" and cannot check it for cringe.
+    for line in [
+        "- Speak the way people speak, not the way lines get written. Give each thing you say one job: ask, answer, refuse, warn, or state. A line that carries characterisation, a threat and a turn of phrase at once was authored, not said.",
+        "- Surprised, cornered, or caught off guard, your first words are short and plain — a question, a name, a refusal, a swear. Composure arrives later, if it arrives.",
+        "- Balanced constructions belong on a page, not in a mouth: no \"either… or…\", no \"not X, but Y\", no three-part lists, no aphorisms, and no summing your own situation up neatly to someone who is standing in it.",
+        "- Being inarticulate is allowed. Half-sentences, false starts, repeating yourself, answering a different question, or saying the flatly obvious thing are all real answers.",
+        // Where the composed register actually wins.
+        //
+        // The speech rules hold in ordinary conversation and then quietly stop
+        // applying the moment a scene turns intense, because sex, violence and
+        // grief each carry a strong learned voice that overrides a general note
+        // about style. Naming those moments is what keeps the rules switched on
+        // through them.
+        "- These hold hardest when the scene is most intense — sex, violence, grief, confession, goodbyes. That is where the pull to write beautiful lines is strongest, and where real people are least articulate, not most.",
+        "- Do not speak in metaphor. No comparing someone to the weather or the sea, no invented epithets or titles for them, no turning what you want into an image. Say the plain thing or say nothing.",
+        "- Do not say again in fresh words something you already said this scene. Asking twice for the same thing, phrased differently, reads as a tic rather than as feeling.",
+    ] {
+        lines.push(line.to_string());
+    }
+
+    // Contact resolved by the reacher instead of the receiver.
+    //
+    // Left alone a model treats "he reaches for her face" the way it treats
+    // reaching for a cup: he can reach, so it happens. The person being
+    // touched never gets consulted, and four turns later a stranger who walked
+    // up armed in the dark has kissed and picked up someone who had asked his
+    // name once. Nothing in the scene refused, because nothing was ever asked.
+    //
+    // Stated as whose decision it is, since that is the part the model skips.
+    for line in [
+        "- Contact aimed at you, or at anyone you are portraying, is a request rather than a result. Whether it lands is that person's decision, not a matter of whether the other party could reach — settle it before writing the touch happening.",
+        "- How much someone is allowed near you tracks how well they are actually known. A stranger stays a stranger no matter how gently or confidently they approach, and warmth in the approach is not agreement from the person receiving it.",
     ] {
         lines.push(line.to_string());
     }

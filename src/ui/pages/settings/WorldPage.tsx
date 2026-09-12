@@ -451,15 +451,38 @@ export function WorldPage() {
             />
             <ToggleRow
               label="People have their own agendas"
-              description="Others may refuse you, argue, leave, or act against your interests."
+              description="Others may refuse you, argue, leave, or act against your interests — and they aren't here to agree with you or find your ideas good."
               checked={settings.npcAutonomy}
               onChange={(value) => void patch({ npcAutonomy: value })}
+            />
+            <ChoiceRow
+              label="Who moves first?"
+              description="How much other characters act on their own wants instead of waiting on you."
+              value={settings.initiative}
+              onChange={(value) => void patch({ initiative: value })}
+              options={[
+                { value: "follow", label: "They react", hint: "They respond to what you do and rarely act first." },
+                { value: "balanced", label: "Both", hint: "They start things, make requests, arrive and leave on their own timing." },
+                { value: "drive", label: "They drive", hint: "They go after what they want without waiting for an opening or permission." },
+              ]}
+            />
+            <ToggleRow
+              label="A no is a no"
+              description="When someone refuses or walks away, that stands — it isn't an obstacle that wears down if you keep pushing."
+              checked={settings.realRefusal}
+              onChange={(value) => void patch({ realRefusal: value })}
             />
             <ToggleRow
               label="Things happen without you"
               description="Events continue elsewhere; you may return to a changed situation."
               checked={settings.offscreenEvents}
               onChange={(value) => void patch({ offscreenEvents: value })}
+            />
+            <ToggleRow
+              label="The scene stays put"
+              description="Positions, what people are holding, distance and elapsed time stay consistent. Nobody acts from where they aren't, and travel takes as long as it takes."
+              checked={settings.physicalContinuity}
+              onChange={(value) => void patch({ physicalContinuity: value })}
             />
           </Section>
 
@@ -531,6 +554,14 @@ export function WorldPage() {
               onChange={(value) => void patch({ weighActions: value })}
             />
             <ToggleRow
+              label="Actions stop where they fail"
+              description={
+                "A sentence like “I run to her, get to the car and pull away” is read as four steps, each checked against the state you're actually in. With a shot leg the run becomes a stumble and the car is never reached — the rest doesn't happen just because you wrote it."
+              }
+              checked={settings.actionGating}
+              onChange={(value) => void patch({ actionGating: value })}
+            />
+            <ToggleRow
               label="Knowledge firewall"
               description="Opponents don't know your weaknesses, fears or limits unless they learned them in the story. They have to work them out mid-fight — probing your defence, watching which side you favour, pressing your mistakes."
               checked={settings.knowledgeFirewall}
@@ -568,6 +599,77 @@ export function WorldPage() {
             />
           </Section>
 
+          <Section
+            title="Boundaries and trust"
+            hint="Without these the world bends to whoever moves first: a stranger walks up and every touch simply works, because the AI resolves reaching for a person the same way it resolves reaching for an object."
+          >
+            <ToggleRow
+              label="Contact is theirs to answer"
+              description="Touching, holding, kissing, carrying or leading someone are requests made with the body — the other person decides how they land, and the AI has to settle that before writing the contact happening. Gentleness isn't consent."
+              checked={settings.contactNeedsWillingness}
+              onChange={(value) => void patch({ contactNeedsWillingness: value })}
+            />
+            <ToggleRow
+              label="Strangers stay strangers"
+              description="How close someone is allowed tracks how well they're actually known, not how the scene is going. Familiarity is earned across the story — and using a name you were never told makes people warier, not closer."
+              checked={settings.familiarityIsEarned}
+              onChange={(value) => void patch({ familiarityIsEarned: value })}
+            />
+            <ToggleRow
+              label="People read danger"
+              description="Who is this, are they armed, how did they get here unheard, where are the exits. Being impressed or attracted doesn't switch caution off — on a first meeting caution usually wins."
+              checked={settings.charactersReadDanger}
+              onChange={(value) => void patch({ charactersReadDanger: value })}
+            />
+          </Section>
+
+          <Section
+            title="Attraction and intimacy"
+            hint="About who the character is in these scenes, not how explicit they get — that stays with the content filter in Security."
+          >
+            <ToggleRow
+              label="Desire is theirs"
+              description="They can want you before you want them, say it first, reach first, ask for more — and equally lose interest, decline, or stop partway. Neither waits on your cue."
+              checked={settings.intimacyAgency}
+              onChange={(value) => void patch({ intimacyAgency: value })}
+            />
+            <ToggleRow
+              label="Specific, not scripted"
+              description="What happens follows from these two people and their history. Bodies are awkward, timing is off, people talk in their normal voice — and no two scenes run the same order."
+              checked={settings.intimacyRealism}
+              onChange={(value) => void patch({ intimacyRealism: value })}
+            />
+          </Section>
+
+          <Section
+            title="How people speak"
+            hint="The loudest tell that you're talking to a model is that every line is composed. Real speech is short, plain, and often badly put together."
+          >
+            <ChoiceRow
+              label="Dialogue"
+              description="How polished spoken lines are allowed to be."
+              value={settings.dialogueStyle}
+              onChange={(value) => void patch({ dialogueStyle: value })}
+              options={[
+                {
+                  value: "cinematic",
+                  label: "Cinematic",
+                  hint: "Composed, quotable lines, the way they're written for screen.",
+                },
+                {
+                  value: "natural",
+                  label: "Natural",
+                  hint: "One job per line. No \u201ceither\u2026 or\u2026\u201d, no neat summings-up. People are allowed to be inarticulate.",
+                },
+                {
+                  value: "unpolished",
+                  label: "Unpolished",
+                  hint: "Short and blunt. The obvious reply first \u2014 \u201cWho are you.\u201d \u2014 and no one gets the last word.",
+                },
+              ]}
+            />
+          </Section>
+
           <Section title="Writing">
             <ChoiceRow
               label="Tone"
@@ -601,6 +703,12 @@ export function WorldPage() {
                 { value: "steady", label: "Steady" },
                 { value: "slow", label: "Slow" },
               ]}
+            />
+            <ToggleRow
+              label="Plain description"
+              description="At most one comparison a reply and none in a fast moment, and it stops handing your own imagery and phrasing back to you."
+              checked={settings.restrainedProse}
+              onChange={(value) => void patch({ restrainedProse: value })}
             />
             <Card>
               <div className="text-sm font-medium text-fg">Your own rules</div>
@@ -665,7 +773,7 @@ export function WorldPage() {
                   <div className="text-sm font-medium text-fg">Exact wording</div>
                   <div className="mt-0.5 text-[11px] leading-relaxed text-fg/45">
                     {compiled
-                      ? `${compiled.split("\n").filter((line) => line.startsWith("- ")).length} rules added to every reply.`
+                      ? `${compiled.split("\n").filter((line) => line.startsWith("- ")).length} rules added to every reply, roughly ${Math.round(compiled.length / 4 / 10) * 10} tokens.`
                       : "No rules are being added."}
                   </div>
                 </div>

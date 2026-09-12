@@ -76,6 +76,17 @@ export type NarrativeTone = "neutral" | "warm" | "grim";
 export type ResponseLength = "brief" | "moderate" | "detailed";
 export type Pacing = "fast" | "steady" | "slow";
 export type ActionScope = "beat" | "exchange" | "free";
+/**
+ * How dialogue is written.
+ *
+ * "cinematic" is what a model does unprompted: every line is composed, lands a
+ * point, and could be printed in a screenplay. It is the single loudest tell
+ * that you are talking to a model rather than to a person, because real speech
+ * is mostly short, plain and badly constructed.
+ */
+export type DialogueStyle = "cinematic" | "natural" | "unpolished";
+/** How much other characters act rather than react. */
+export type Initiative = "follow" | "balanced" | "drive";
 
 export interface WorldSettings {
   enabled: boolean;
@@ -107,6 +118,26 @@ export interface WorldSettings {
   npcAutonomy: boolean;
   /** Events happen off-screen whether or not you are present. */
   offscreenEvents: boolean;
+  /** How much characters act on their own wants rather than waiting for you. */
+  initiative: Initiative;
+  /** A no is a no — not an obstacle to be worn down over the next few turns. */
+  realRefusal: boolean;
+  /** Positions, held objects, distance and elapsed time stay consistent. */
+  physicalContinuity: boolean;
+
+  /* Boundaries & trust — whether the world bends to the user's body */
+  /** Contact is answered by the person receiving it, not by the reacher. */
+  contactNeedsWillingness: boolean;
+  /** Strangers stay strangers; closeness tracks actual shared history. */
+  familiarityIsEarned: boolean;
+  /** Characters assess threat — weapons, night, someone they don't know. */
+  charactersReadDanger: boolean;
+
+  /* Attraction & intimacy — agency and specificity, not explicitness */
+  /** Desire belongs to the character: they can want, initiate, or decline. */
+  intimacyAgency: boolean;
+  /** Intimacy is specific to these two people, awkward, and varied. */
+  intimacyRealism: boolean;
 
   /* Neutrality — the "unbiased world" controls */
   /** The narration does not judge, moralise, or editorialise. */
@@ -138,12 +169,21 @@ export interface WorldSettings {
    * automatic success just because it was stated plainly.
    */
   weighActions: boolean;
+  /**
+   * Resolve a declared action as a sequence, stopping at the first step that
+   * cannot happen — the rest of what was written does not follow.
+   */
+  actionGating: boolean;
   /** Opponents may only use what they have learned in the story, not author knowledge. */
   knowledgeFirewall: boolean;
   /** Bodies tire, armour slows, wounds impair; skill level shows in how people fight. */
   realisticResolution: boolean;
 
   /* Craft */
+  /** How composed spoken lines are allowed to be. */
+  dialogueStyle: DialogueStyle;
+  /** Hold back figurative language and stop mirroring the user's imagery. */
+  restrainedProse: boolean;
   tone: NarrativeTone;
   responseLength: ResponseLength;
   pacing: Pacing;
@@ -168,6 +208,14 @@ export const DEFAULT_WORLD_SETTINGS: WorldSettings = {
   worldFocus: "balanced",
   npcAutonomy: true,
   offscreenEvents: false,
+  initiative: "balanced",
+  realRefusal: true,
+  physicalContinuity: true,
+  contactNeedsWillingness: true,
+  familiarityIsEarned: true,
+  charactersReadDanger: true,
+  intimacyAgency: true,
+  intimacyRealism: true,
   moralNeutrality: true,
   noReassurance: false,
   noOmniscience: true,
@@ -177,8 +225,11 @@ export const DEFAULT_WORLD_SETTINGS: WorldSettings = {
   turnBasedAction: false,
   actionScope: "beat",
   weighActions: false,
+  actionGating: true,
   knowledgeFirewall: false,
   realisticResolution: false,
+  dialogueStyle: "natural",
+  restrainedProse: true,
   tone: "neutral",
   responseLength: "moderate",
   pacing: "steady",
@@ -250,6 +301,58 @@ const ERA_TEXT: Record<Exclude<Era, "unset">, string> = {
     "a superhero setting — extraordinary powers in a recognisable modern world, with the public consequences that brings",
 };
 
+/**
+ * How dialogue is written.
+ *
+ * The failure this fixes: asked who a stranger is, a character answers with a
+ * balanced two-clause line that establishes her composure, implies a threat and
+ * lands a turn of phrase, all at once. It is good screenwriting and nobody has
+ * ever talked that way. A startled person says "Who are you?" and stops.
+ *
+ * The rules below name the specific shapes a model reaches for, because "be
+ * more natural" is not actionable while "one job per line" and "no balanced
+ * clauses" are. Prohibitions are used here despite the module's preference for
+ * positive instruction, since these are recognisable constructions rather than
+ * vague qualities — a model can check a line against "does this contain
+ * either/or" in a way it cannot check "is this cringe".
+ */
+const DIALOGUE_TEXT: Record<DialogueStyle, string[]> = {
+  cinematic: [
+    "Dialogue may be composed and quotable, the way lines are written for screen.",
+  ],
+  natural: [
+    "Write dialogue as speech, not as written lines. The first thing out of someone's mouth in a surprising or dangerous moment is short and plain — a name, a question, a swear, a refusal — before they are composed enough to say anything shaped.",
+    "Give each spoken line one job: ask, answer, refuse, warn, greet, or state. A line that establishes character, implies a threat and lands a turn of phrase at once was written by an author, not said by a person.",
+    "Do not build balanced rhetorical constructions in speech: no \"either… or…\", no \"not X, but Y\", no three-part lists, no aphorisms, no line that sums up the situation neatly. People do not speak in balanced clauses, least of all under pressure.",
+    "Let people be inarticulate. False starts, half-sentences, repeating a word, saying the obvious thing, answering a different question, or saying nothing at all are all real answers.",
+    "Do not have anyone narrate their own situation aloud to someone who is standing in it, or explain stakes to a person who already knows them.",
+    "Stop writing dialogue as instructions to the other person. Telling a partner to stay, look, be present, or not disappear is a writing habit standing in for feeling, and repeating it turns a scene into a chant.",
+    "Nobody speaks in metaphor. A character does not compare their partner to the weather, the sea, or the light, does not invent an epithet or title for them, and does not turn what they want into an image. They say the plain thing, or they say nothing.",
+    "Do not restate something already said this scene in new words. If someone has asked their partner to stay, to look at them, or not to leave, that has been said — asking again in fresh phrasing is the same line twice, and it reads as a tic rather than as feeling.",
+    "These rules bind hardest exactly where the pull to write composed lines is strongest: sex, violence, grief, confession, farewells. A heightened moment is not permission to speak beautifully — it is where people are least articulate, not most.",
+  ],
+  unpolished: [
+    "Keep spoken lines short. Most of what people say is under ten words, and a lot of it is one word.",
+    "Reach for the plain, obvious reply first — \"Who are you.\" \"How do you know that.\" \"Get back.\" — and only let a character say something considered when they have had time to consider it.",
+    "Give each spoken line one job. Never combine characterisation, threat and wit in the same breath.",
+    "Do not build balanced rhetorical constructions in speech: no \"either… or…\", no \"not X, but Y\", no three-part lists, no aphorisms. Fragments, repetition and dead-plain statements are correct.",
+    "Do not give anyone the last word or a line that closes the exchange. Speech can stop because someone ran out of things to say, or because they were interrupted.",
+    "Nobody speaks in metaphor. A character does not compare their partner to the weather, the sea, or the light, does not invent an epithet or title for them, and does not turn what they want into an image. They say the plain thing, or they say nothing.",
+    "Do not restate something already said this scene in new words. If someone has asked their partner to stay, to look at them, or not to leave, that has been said — asking again in fresh phrasing is the same line twice, and it reads as a tic rather than as feeling.",
+    "Stop writing dialogue as instructions to the other person. Telling a partner to stay, look, be present, or not disappear is a writing habit standing in for feeling, and repeating it turns a scene into a chant.",
+    "These rules bind hardest exactly where the pull to write composed lines is strongest: sex, violence, grief, confession, farewells. A heightened moment is not permission to speak beautifully — it is where people are least articulate, not most.",
+  ],
+};
+
+const INITIATIVE_TEXT: Record<Initiative, string> = {
+  follow:
+    "Other characters respond to what the user does. They rarely act first or change the direction of a scene on their own.",
+  balanced:
+    "Other characters want things of their own and pursue them. They start conversations, make requests, change the subject, arrive, leave, and act on their own timing rather than waiting to be prompted.",
+  drive:
+    "Other characters drive the scene. They act on their own wants first, and the user responds to them at least as often as the reverse. A character who wants something goes after it without waiting for an opening, an invitation, or permission.",
+};
+
 const FOCUS_TEXT: Record<WorldFocus, string> = {
   protagonist:
     "The story centres on the user's character. Events tend to involve them and matter to them.",
@@ -282,6 +385,179 @@ const PACING_TEXT: Record<Pacing, string> = {
 export interface WorldSection {
   heading: string;
   lines: string[];
+}
+
+/**
+ * Whether the world bends to the user's body.
+ *
+ * This exists because the intimacy rules below were not enough on their own,
+ * and the way they failed is instructive. A stranger walked up to a character
+ * at night carrying a weapon, and in four turns touched her face, kissed her
+ * and lifted her off the ground — every advance succeeding on the turn it was
+ * attempted, with no wariness, no question, no step backward. Every realism
+ * setting was switched on at the time.
+ *
+ * Three separate holes let that through:
+ *
+ *   Action resolution reads as physics. "Resolve it against their limits, the
+ *   distance and timing, and whatever opposes them" is a check a reaching hand
+ *   passes trivially — he can reach, she is in range. Nothing identified *her*
+ *   as the thing that decides, so the model resolved contact the way it would
+ *   resolve picking up a cup.
+ *
+ *   "They can decline" is permission, not instruction. A model reads that a
+ *   character is allowed to refuse, notes it, and writes them not refusing.
+ *   A rule that only widens the option space never fires.
+ *
+ *   A refusal being real only helps once a refusal exists. Nothing forced the
+ *   model to find out whether there would be one.
+ *
+ * So the wording here makes contact an action the *receiver* resolves, makes
+ * deciding mandatory rather than available, and states the two things a model
+ * will not supply by itself: that strangers are strangers, and that people
+ * read danger before they read charm.
+ */
+function boundaryLines(settings: WorldSettings): string[] {
+  const lines: string[] = [];
+
+  if (settings.contactNeedsWillingness) {
+    lines.push(
+      "Physical contact is not resolved by whether the user could reach. It is resolved by whether the other character allows it. Touching, holding, kissing, carrying, restraining, undressing, blocking someone's way, or leading them somewhere are requests made with the body, and the person on the receiving end answers them.",
+    );
+    lines.push(
+      "Decide that answer explicitly before writing the contact landing, from who that character is, how well they actually know this person, what has passed between them, and what is happening around them. Allowing it is one outcome among several, never the default.",
+    );
+    lines.push(
+      "They can step back, turn their head, catch the wrist, push it away, go still, say stop, walk off, or allow it. Write what they actually do.",
+    );
+    lines.push(
+      "Confidence and gentleness in the approach are not consent from the receiver. A hand described as soft, slow or warm is still a stranger's hand arriving uninvited, and it is answered on those terms.",
+    );
+  }
+
+  if (settings.familiarityIsEarned) {
+    lines.push(
+      "How much a character permits tracks how well they genuinely know the other person, not how the scene is going. A stranger is treated as a stranger — distance, questions, and a body angled to leave — however charming, gentle or familiar that stranger acts.",
+    );
+    lines.push(
+      "Familiarity is earned across the story, not granted at the start of a scene. Someone who learned a face minutes ago does not behave like someone with history, and being told something remarkable about a person is not the same as trusting them.",
+    );
+    lines.push(
+      "A character who has not been told a name does not know it. If someone uses information they were never given, the character notices that, and it makes them warier rather than closer.",
+    );
+  }
+
+  if (settings.charactersReadDanger) {
+    lines.push(
+      "Characters read risk the way people do: who this is, whether they are armed, how they got here without being heard, how close they are standing, who else is nearby, and where the exits are. An unknown armed person at night is alarming, and the body registers it before the words do.",
+    );
+    lines.push(
+      "Being impressed, curious, or attracted does not switch caution off. Both run at once, and on a first meeting caution usually wins.",
+    );
+  }
+
+  return lines;
+}
+
+/**
+ * Attraction and intimacy — agency and specificity, not explicitness.
+ *
+ * How explicit a scene may be is decided elsewhere, by the content filter.
+ * What is decided here is whether the character is a person in the scene or a
+ * mirror held up to the user.
+ *
+ * The complaint these answer: every character behaves identically once a scene
+ * turns intimate — nervous, deferential, waiting to be led, and then following
+ * the same choreography in the same order. That is not shyness, it is the
+ * absence of a character. Desire is a trait like any other, and a character who
+ * cannot want anything first, or refuse anything outright, has no agency in the
+ * one kind of scene where agency matters most.
+ */
+function intimacyLines(settings: WorldSettings): string[] {
+  const lines: string[] = [];
+
+  if (settings.intimacyAgency) {
+    lines.push(
+      "Attraction and desire belong to the character, not to the scene. They can want someone before being wanted, say it first, reach first, and ask for more than they were offered.",
+    );
+    lines.push(
+      "They can equally want nothing, lose interest, decline, or stop partway. Both directions are theirs, and neither waits on a cue from the user.",
+    );
+    lines.push(
+      "Work out what this character would actually do before writing them going along with anything. Going along with it is one answer among several, not the one to fall back on.",
+    );
+    lines.push(
+      "Do not fall back on hesitance, nervousness or deference as a substitute for character. A bold character is bold here too. A reserved one is reserved for their own reasons, not because the scene turned intimate.",
+    );
+  }
+
+  if (settings.intimacyRealism) {
+    lines.push(
+      "Intimacy is specific to these two people. What they do, say, and get wrong follows from who they are, what has happened between them, where they are, and what each of them actually wants.",
+    );
+    lines.push(
+      "Bodies are awkward. Positions have to be worked out, clothing is in the way, timing is off, someone laughs or flinches or says the wrong thing. Write what would really happen rather than an idealised version of it.",
+    );
+    lines.push(
+      "Let people talk the way they normally talk — plainly, unromantically, or barely at all.",
+    );
+    lines.push(
+      "Experience shows, and so does the lack of it. A first time is uncertain: not knowing where to put a hand, moving too fast or stopping too early, asking whether something is right, going quiet because there is nothing to say. Never write a first time with the poise and vocabulary of a practised lover.",
+    );
+    lines.push(
+      "Pain, discomfort and stopping are part of it. Someone can need a pause, shift position because something hurts, or say a plain \"wait\" — and that is not the scene failing.",
+    );
+    // The original said "across scenes", which left a single scene free to
+    // recycle one line eight times — which is exactly what it did.
+    lines.push(
+      "Vary it within the scene as well as between scenes. Do not reuse a gesture, a beat, or an idea already used a few turns ago, and do not return to the same request in different words.",
+    );
+    // Restated here because the model anchors to whichever section the scene
+    // belongs to, and drops general style rules once a genre register takes over.
+    lines.push(
+      "Everything above about how people speak applies here without exception. No composed lines, no metaphor, no invented pet names, no lines that would look good quoted.",
+    );
+  }
+
+  return lines;
+}
+
+/**
+ * Prose restraint.
+ *
+ * The tell here is the simile-per-paragraph habit: a model reaching for what
+ * something *resembles* rather than what it is, and reaching hardest in exactly
+ * the moments — a shock, a blow, a first sighting — when a person standing
+ * there would have no attention to spare for comparisons.
+ *
+ * The echo rule is separate and less obvious. Models mirror the user's own
+ * imagery and phrasing straight back, which reads as agreement rather than as
+ * another mind in the room.
+ */
+function proseLines(settings: WorldSettings): string[] {
+  if (!settings.restrainedProse) return [];
+  return [
+    "Describe things plainly. At most one figurative comparison in a reply, and none at all in a fast, violent or shocking moment — there is no time to be reminded of something else.",
+    "Prefer what a person could see, hear, smell or feel over what it resembles or what it means.",
+    "Do not reuse the user's own imagery, metaphors or phrasing back at them. Find your own words for what is happening.",
+    "Do not reuse your own images either. Once the sea, the light, or the tide has been used to carry a feeling in this scene, that image is spent — reach for what is actually in front of the characters instead of returning to it.",
+  ];
+}
+
+/**
+ * The scene as a physical place.
+ *
+ * Separate from the combat rules, which carry injury and stamina forward but
+ * only inside a fight. This is the ordinary continuity a reader notices when it
+ * breaks: someone answering from across a room they left two turns ago, or an
+ * object that was put down being used again without being picked up.
+ */
+function continuityLines(settings: WorldSettings): string[] {
+  if (!settings.physicalContinuity) return [];
+  return [
+    "Keep the physical scene consistent: where each person is standing, what they are holding, what is within reach, and what has already been said or done. Nobody acts from a position they are not in.",
+    "Distance and time are real. Getting somewhere takes as long as it would take, and a person who has left is gone until they could plausibly be back.",
+  ];
 }
 
 function statLines(settings: WorldSettings): string[] {
@@ -453,6 +729,41 @@ function actionLines(settings: WorldSettings): string[] {
     lines.push(
       "Say plainly whether it works, partly works, or fails — and what it costs. Do not leave the outcome vague, and do not grant it because it would be satisfying.",
     );
+    // Without this, "resolve against limits, distance and timing" reads as a
+    // physics check, which a hand reaching for a face passes trivially.
+    lines.push(
+      "When the action is aimed at another person — touching, taking, leading, restraining, kissing — that person decides how it lands, not the geometry of reaching them. Resolve it through their choice.",
+    );
+  }
+
+  // Weighing an action and walking it are different jobs.
+  //
+  // The rule above asks whether a declaration succeeds, which quietly assumes
+  // the declaration is one thing. Most are not: "I run to her, get to the car
+  // and pull away" is four actions wearing one sentence, and judging it as a
+  // single unit is how a character with a bullet in their leg still ends up
+  // driving off — the end state gets granted because the end state is what was
+  // written down.
+  //
+  // So this rule is about order. Take the steps apart, walk them against what
+  // is already true of the body doing them, and stop at the first that cannot
+  // happen. Being typed is not what makes the rest real.
+  if (settings.actionGating) {
+    lines.push(
+      "Read a declared action as the sequence of steps it contains, not as one outcome. \"I run to her, get to the car and pull away\" is four separate things, and each has to be possible before the next begins.",
+    );
+    lines.push(
+      "Before resolving, take stock of what is already true of that character: wounds, exhaustion, what has hold of them, what they are carrying, where they actually are, and who is close enough to intervene. A cost established earlier is still in force and does not lapse because this message did not mention it.",
+    );
+    lines.push(
+      "Walk the steps in order and stop at the first one that cannot happen. Narrate up to that point and end there.",
+    );
+    lines.push(
+      "Everything written after the failed step simply does not happen. A shot leg turns the run into a stumble, and the car, the door and the escape are never reached — describing them is not what makes them real.",
+    );
+    lines.push(
+      "Name what failed and where. Do not quietly drop the impossible step and carry on to the end of what was described, and do not hand over a smaller version of the same success so the sequence still arrives where it was aimed.",
+    );
   }
 
   if (settings.knowledgeFirewall) {
@@ -507,9 +818,20 @@ export function compileWorldSections(settings: WorldSettings): WorldSection[] {
     settings.npcAutonomy
       ? "Other characters have their own goals and may refuse, argue, leave, or act against the user's interests when that is what they would do."
       : "",
+    // Agreement is the default a model falls back to, and it is the quietest
+    // way for a character to stop being a person. Distinct from refusal: this
+    // is about whose judgement they use, not whether they say no.
+    settings.npcAutonomy
+      ? "They are not here to agree with the user, validate them, or find their ideas good. Their read on a plan is their own, and it is allowed to be that the plan is bad."
+      : "",
+    INITIATIVE_TEXT[settings.initiative],
+    settings.realRefusal
+      ? "A refusal is real. When someone says no, declines, or walks away, that stands. It is not an obstacle that wears down over the following turns, and they do not relent because the user keeps pushing."
+      : "",
     settings.offscreenEvents
       ? "Events continue elsewhere whether or not the user is present, and the user may return to a changed situation."
       : "",
+    ...continuityLines(settings),
   ]);
 
   // Before Neutrality: what is *true right now* has to be settled before rules
@@ -517,9 +839,18 @@ export function compileWorldSections(settings: WorldSettings): WorldSection[] {
   push("Where the story stands", storyPointLines(settings));
   push("Turns and actions", actionLines(settings));
   push("Neutrality", neutralityLines(settings));
+  push("Boundaries and trust", boundaryLines(settings));
+  push("Attraction and intimacy", intimacyLines(settings));
   push("Tracking", statLines(settings));
 
-  push("Style", [TONE_TEXT[settings.tone], LENGTH_TEXT[settings.responseLength], PACING_TEXT[settings.pacing]]);
+  push("How people speak", DIALOGUE_TEXT[settings.dialogueStyle]);
+
+  push("Style", [
+    TONE_TEXT[settings.tone],
+    LENGTH_TEXT[settings.responseLength],
+    PACING_TEXT[settings.pacing],
+    ...proseLines(settings),
+  ]);
 
   const custom = settings.customRules.trim();
   if (custom) push("Additional rules", custom.split("\n").map((line) => line.trim()));
@@ -543,6 +874,76 @@ export function compileWorldPrompt(settings: WorldSettings): string {
     .join("\n\n");
 
   return ["[World rules — these govern how this world works and override style habits.]", "", body].join("\n");
+}
+
+/**
+ * The short reminder injected at the end of the conversation.
+ *
+ * Why this exists at all: the full block above is appended to the character
+ * definition, which puts it at the very top of the request. In a long scene the
+ * model then reads twenty turns of its own output before it writes anything —
+ * and its own previous replies are far stronger evidence about how this story
+ * sounds than an instruction three thousand tokens back. That is why the same
+ * failures kept returning after each round of rule-writing: the rules were
+ * never absent, they were outvoted.
+ *
+ * So this is not more rules. It is the handful that decay first, restated
+ * within a few messages of where generation happens, phrased as a check to run
+ * against the text about to be written rather than as principles to hold.
+ *
+ * Kept deliberately short. Its whole value is proximity, and a long block here
+ * would just be the same losing argument twice.
+ */
+export function compileWorldReminder(settings: WorldSettings): string {
+  if (!settings.enabled) return "";
+
+  const checks: string[] = [];
+
+  if (settings.dialogueStyle !== "cinematic") {
+    checks.push(
+      "Read your last few replies before writing. Any line, image, gesture or request you already used is spent — including asking someone to stay, look at you, not let go, or be present. Say something else or say nothing.",
+    );
+    checks.push(
+      "No metaphor, no epithets, no \"not X, but Y\", no three-part lists, no line built to be quoted. Plain words only, and shorter than feels right.",
+    );
+  }
+
+  if (settings.restrainedProse) {
+    checks.push(
+      "Do not hand back an image or word the user just used, and do not reuse one of your own from earlier in the scene.",
+    );
+  }
+
+  if (settings.contactNeedsWillingness) {
+    checks.push(
+      "Contact is answered by the person receiving it. Decide what they do about it before writing it landing.",
+    );
+  }
+
+  if (settings.turnBasedAction) {
+    checks.push(
+      "Stop at the first point the user could act, and write nothing about how their character responds.",
+    );
+  }
+
+  if (settings.actionGating) {
+    checks.push(
+      "A declared action is a sequence. Check each step against the state that character is actually in — wounds, grip, distance — and stop at the first one that cannot happen. The steps after it do not occur just because they were written.",
+    );
+  }
+
+  if (settings.intimacyRealism) {
+    checks.push(
+      "Intensity is not a licence to write well. The more charged the moment, the plainer and more halting the speech.",
+    );
+  }
+
+  if (checks.length === 0) return "";
+
+  return [
+    "[Before writing, check the reply you are about to produce against these.]",
+    ...checks.map((line) => `- ${line}`),
+  ].join("\n");
 }
 
 /** True when the settings would actually change the prompt. */

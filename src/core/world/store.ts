@@ -10,14 +10,46 @@
 
 import { getAppState, withAppState } from "../storage/appState";
 import type { WorldSettingsState } from "../storage/schemas";
-import { compileWorldPrompt, type WorldSettings } from "./settings";
+import { compileWorldPrompt, compileWorldReminder, type WorldSettings } from "./settings";
 
 /** The stored shape minus the derived field. */
-export type WorldInput = Omit<WorldSettingsState, "compiledPrompt">;
+export type WorldInput = Omit<WorldSettingsState, "compiledPrompt" | "compiledReminder">;
 
 export async function getWorldSettings(): Promise<WorldSettingsState> {
-  const state = await getAppState();
-  return state.world;
+  return await ensureWorldPromptCurrent();
+}
+
+/**
+ * Recompile the stored prompt when it no longer matches the toggles.
+ *
+ * `compiledPrompt` is only written on save, so a world configured before a rule
+ * existed keeps the text it was compiled with — the new rule sits in the
+ * toggles and never reaches the model. Nothing prompts a re-save either: the
+ * settings look correct, because they are; it is the derived text that is
+ * behind. Users would simply find that a documented rule does nothing.
+ *
+ * This already bit the turn-based combat release, whose four settings were
+ * added to worlds that had been compiled before they existed.
+ *
+ * Called on app start and on every settings read. Writes only on a real
+ * mismatch, so the ordinary path is one string comparison and no disk touch.
+ */
+export async function ensureWorldPromptCurrent(): Promise<WorldSettingsState> {
+  const world = (await getAppState()).world;
+
+  const fresh = compileWorldPrompt(world as WorldSettings);
+  const freshReminder = compileWorldReminder(world as WorldSettings);
+  if (fresh === world.compiledPrompt && freshReminder === world.compiledReminder) return world;
+
+  try {
+    await withAppState((draft) => {
+      draft.world = { ...draft.world, compiledPrompt: fresh, compiledReminder: freshReminder };
+    });
+  } catch {
+    // A failed rewrite is not worth blocking startup or a settings read — the
+    // caller still gets correct toggles, and the next save fixes the text.
+  }
+  return { ...world, compiledPrompt: fresh, compiledReminder: freshReminder };
 }
 
 /** Recompile the prompt for a set of toggles without saving. Used for preview. */
@@ -37,6 +69,7 @@ export async function saveWorldSettings(patch: Partial<WorldInput>): Promise<Wor
   await withAppState((state) => {
     const merged = { ...state.world, ...patch };
     merged.compiledPrompt = compileWorldPrompt(merged as WorldSettings);
+    merged.compiledReminder = compileWorldReminder(merged as WorldSettings);
     state.world = merged;
     saved = merged;
   });
@@ -80,6 +113,52 @@ export const WORLD_STARTING_POINTS: readonly WorldStartingPoint[] = [
       statTracking: "light",
       trackHealth: true,
       trackInventory: true,
+      initiative: "drive",
+      realRefusal: true,
+      physicalContinuity: true,
+      turnBasedAction: true,
+      actionScope: "beat",
+      weighActions: true,
+      actionGating: true,
+      knowledgeFirewall: true,
+      realisticResolution: true,
+      dialogueStyle: "unpolished",
+      restrainedProse: true,
+      contactNeedsWillingness: true,
+      familiarityIsEarned: true,
+      charactersReadDanger: true,
+    },
+  },
+  {
+    id: "living",
+    name: "Living world",
+    description: "People talk like people, act on their own wants, and fights are fair.",
+    settings: {
+      dialogueStyle: "natural",
+      restrainedProse: true,
+      initiative: "balanced",
+      realRefusal: true,
+      physicalContinuity: true,
+      contactNeedsWillingness: true,
+      familiarityIsEarned: true,
+      charactersReadDanger: true,
+      intimacyAgency: true,
+      intimacyRealism: true,
+      turnBasedAction: true,
+      actionScope: "beat",
+      weighActions: true,
+      actionGating: true,
+      knowledgeFirewall: true,
+      realisticResolution: true,
+      npcAutonomy: true,
+      offscreenEvents: true,
+      worldFocus: "balanced",
+      moralNeutrality: true,
+      noOmniscience: true,
+      lethality: "realistic",
+      plotArmour: "none",
+      actionsCanFail: true,
+      tone: "neutral",
     },
   },
   {
@@ -96,6 +175,11 @@ export const WORLD_STARTING_POINTS: readonly WorldStartingPoint[] = [
       tone: "warm",
       pacing: "slow",
       statTracking: "off",
+      initiative: "balanced",
+      turnBasedAction: false,
+      weighActions: false,
+      realisticResolution: false,
+      dialogueStyle: "natural",
     },
   },
   {
@@ -112,6 +196,19 @@ export const WORLD_STARTING_POINTS: readonly WorldStartingPoint[] = [
       moralNeutrality: true,
       noOmniscience: true,
       tone: "neutral",
+      initiative: "balanced",
+      realRefusal: true,
+      physicalContinuity: true,
+      contactNeedsWillingness: true,
+      familiarityIsEarned: true,
+      charactersReadDanger: true,
+      turnBasedAction: true,
+      actionScope: "exchange",
+      weighActions: true,
+      actionGating: true,
+      realisticResolution: true,
+      dialogueStyle: "natural",
+      restrainedProse: true,
     },
   },
   {
@@ -131,6 +228,13 @@ export const WORLD_STARTING_POINTS: readonly WorldStartingPoint[] = [
       npcAutonomy: true,
       era: "highFantasy",
       enforceEra: true,
+      physicalContinuity: true,
+      turnBasedAction: true,
+      actionScope: "beat",
+      weighActions: true,
+      actionGating: true,
+      knowledgeFirewall: true,
+      realisticResolution: true,
     },
   },
   {
@@ -145,6 +249,18 @@ export const WORLD_STARTING_POINTS: readonly WorldStartingPoint[] = [
       npcAutonomy: true,
       plotArmour: "none",
       tone: "neutral",
+      initiative: "drive",
+      realRefusal: true,
+      contactNeedsWillingness: true,
+      familiarityIsEarned: true,
+      charactersReadDanger: true,
+      intimacyAgency: true,
+      weighActions: true,
+      actionGating: true,
+      knowledgeFirewall: true,
+      realisticResolution: true,
+      dialogueStyle: "natural",
+      restrainedProse: true,
     },
   },
 ];

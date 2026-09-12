@@ -1164,6 +1164,16 @@ pub fn ensure_app_default_template(app: &AppHandle) -> Result<String, String> {
         let _ = append_missing_entry(
             app,
             APP_DEFAULT_TEMPLATE_ID,
+            "entry_world_reminder",
+            defaults
+                .iter()
+                .cloned()
+                .find(|entry| entry.id == "entry_world_reminder")
+                .expect("world reminder entry should exist"),
+        );
+        let _ = append_missing_entry(
+            app,
+            APP_DEFAULT_TEMPLATE_ID,
             "entry_author_note",
             defaults
                 .iter()
