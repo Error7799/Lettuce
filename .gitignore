@@ -54,3 +54,6 @@ docs/sync-old-architecture.mmd
 docs/sync-old-architecture.svg
 src-tauri/target-check/
 docs/uec-2-character-fields.md
+
+# Downloaded by src-tauri/build.rs from the onnxruntime releases, not source.
+src-tauri/onnxruntime/

@@ -3,6 +3,7 @@ import { onBackButtonPress } from "@tauri-apps/api/app";
 import { exit } from "@tauri-apps/plugin-process";
 import { useLocation } from "react-router-dom";
 import { PluginListener } from "@tauri-apps/api/core";
+import { getPlatform } from "../../core/utils/platform";
 import { resolveBackTarget, Routes, useNavigationManager } from "../navigation";
 
 export function useAndroidBackHandler(options?: {
@@ -15,6 +16,16 @@ export function useAndroidBackHandler(options?: {
   const location = useLocation();
 
   useEffect(() => {
+    // The hardware back button only exists on mobile. `onBackButtonPress`
+    // resolves to `plugin:app|registerListener`, which desktop builds do not
+    // expose, so calling it there rejects with "app.registerListener not
+    // allowed. Command not found".
+    //
+    // That is not a harmless one-off: `location.key` is in this effect's deps,
+    // so the hook re-registers on every navigation and the rejection repeats
+    // for the whole session, burying real errors in the console.
+    if (getPlatform().type !== "mobile") return;
+
     let unlisten: PluginListener | undefined;
 
     (async () => {
