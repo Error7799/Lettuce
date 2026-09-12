@@ -67,6 +67,7 @@ export const enMessages = {
       create: "Create",
       discover: "Discover",
       library: "Library",
+      lorebookMaker: "Maker",
     },
     toasts: {
       openingBrowser: "Opening in your browser",

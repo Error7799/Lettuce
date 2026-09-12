@@ -1,4 +1,4 @@
-import { Compass, Library, MessageCircle, Search, Settings, Users } from "lucide-react";
+import { Compass, Library, MessageCircle, Search, Settings, Users, Wand2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import type { TranslationKey } from "../../../core/i18n/context";
@@ -45,6 +45,17 @@ export const NAV_DESTINATIONS: readonly NavDestination[] = [
     labelKey: "common.bottomNav.library",
     isActive: (pathname) => pathname.startsWith("/library"),
     dataTourId: "nav-library",
+  },
+  {
+    // A wand rather than another book: this is the tool that conjures entries
+    // out of a wiki, and it needs to be findable next to Library without
+    // reading as a second copy of it.
+    id: "lorebookMaker",
+    to: "/lorebook-maker",
+    icon: Wand2,
+    labelKey: "common.bottomNav.lorebookMaker",
+    isActive: (pathname) => pathname.startsWith("/lorebook-maker"),
+    dataTourId: "nav-lorebook-maker",
   },
   {
     id: "search",

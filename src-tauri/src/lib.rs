@@ -36,6 +36,7 @@ pub mod sync;
 pub mod tls;
 pub mod tokens;
 mod transport;
+pub mod wiki_scraper;
 pub mod tts_manager;
 mod usage;
 
