@@ -28,3 +28,31 @@ export function useShowNsfwImages(): boolean {
 
   return show;
 }
+
+/**
+ * Whether Pure Mode is currently narrowing what Discovery can show.
+ *
+ * Same state as `useShowNsfwImages`, asked the other way round, so a page can
+ * explain the gap in its results instead of leaving it unexplained. Starts
+ * false so nothing flashes on before the real value is known.
+ */
+export function usePureModeFiltering(): boolean {
+  const [filtering, setFiltering] = useState(cachedShowNsfw === null ? false : !cachedShowNsfw);
+
+  useEffect(() => {
+    let cancelled = false;
+    getAppState()
+      .then((state) => {
+        cachedShowNsfw = !state.pureModeEnabled;
+        if (!cancelled) setFiltering(state.pureModeEnabled === true);
+      })
+      .catch(() => {
+        // Saying nothing is better than claiming a filter that may not be on.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return filtering;
+}

@@ -19,11 +19,12 @@ import {
   DiscoveryFeaturedSkeleton,
   DiscoveryGridSkeleton,
   InfiniteScrollSentinel,
+  PureModeNotice,
 } from "./components";
 import { PageHeader } from "../../components/App";
 import { useDiscoverySearch } from "./hooks/useDiscoverySearch";
 import { useIsMobileViewport } from "./hooks/useIsMobileViewport";
-import { useShowNsfwImages } from "./hooks/useDiscoveryNsfw";
+import { useShowNsfwImages, usePureModeFiltering } from "./hooks/useDiscoveryNsfw";
 import { useDiscoveryProvider } from "./hooks/useDiscoveryProvider";
 import {
   fetchDiscoverySections,
@@ -45,6 +46,7 @@ export function DiscoveryPage() {
   const [searchParams] = useSearchParams();
   const isMobileViewport = useIsMobileViewport();
   const showNsfw = useShowNsfwImages();
+  const pureModeFiltering = usePureModeFiltering();
   const { provider, providerId, setProviderId, providers } = useDiscoveryProvider();
 
   const TABS: TabItem[] = [
@@ -287,6 +289,14 @@ export function DiscoveryPage() {
             }
           />
         )}
+
+        {/* Pure Mode thins these sections out; name the cause here rather than
+            leaving a short grid looking like a broken source. */}
+        {pureModeFiltering ? (
+          <div className="px-4 pb-1 pt-2 lg:px-8">
+            <PureModeNotice />
+          </div>
+        ) : null}
 
         {/* Inline search results (desktop) */}
         {searching && (

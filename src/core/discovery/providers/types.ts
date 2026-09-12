@@ -28,6 +28,14 @@ export interface BrowseQuery {
   pageSize: number;
   includeNsfw: boolean;
   tags?: string[];
+  /**
+   * Limit results to one creator's characters.
+   *
+   * Only honoured by sources that advertise `supportsCreatorBrowse`; others
+   * ignore it, so the UI must not offer the link for those or it would silently
+   * return the whole catalogue instead of one person's work.
+   */
+  creator?: string;
 }
 
 export interface BrowseResult {
@@ -53,6 +61,8 @@ export interface DiscoveryProvider {
    * exist and why they are unavailable.
    */
   requiresAuth?: boolean;
+  /** Whether `BrowseQuery.creator` actually filters on this source. */
+  supportsCreatorBrowse?: boolean;
 
   browse(query: BrowseQuery, signal?: AbortSignal): Promise<BrowseResult>;
 

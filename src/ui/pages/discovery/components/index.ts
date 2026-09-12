@@ -8,3 +8,4 @@ export {
   DiscoveryDetailSkeleton,
 } from "./DiscoverySkeleton";
 export { InfiniteScrollSentinel } from "./InfiniteScrollSentinel";
+export { PureModeNotice } from "./PureModeNotice";

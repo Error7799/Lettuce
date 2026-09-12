@@ -126,6 +126,7 @@ export const chubProvider: DiscoveryProvider = {
   label: "Chub",
   description: "The largest public character catalogue. No account needed.",
   homepage: SITE_BASE,
+  supportsCreatorBrowse: true,
 
   async browse(query: BrowseQuery, signal?: AbortSignal): Promise<BrowseResult> {
     const payload = await getJson<ChubSearchResponse>(`${API_BASE}/search`, {
@@ -135,6 +136,11 @@ export const chubProvider: DiscoveryProvider = {
         first: query.pageSize,
         page: query.page,
         sort: SORT_KEYS[query.sort] ?? SORT_KEYS.trending,
+        // Chub filters by creator on `username`. Checked against the live API:
+        // it works with every sort this provider actually sends, though the
+        // literal string "trending" returns nothing — which is why the sort map
+        // above translates that to "default" rather than passing it through.
+        username: query.creator || undefined,
         nsfw: query.includeNsfw,
         // NSFL is the harder tier; it follows the NSFW switch rather than
         // getting a control of its own.

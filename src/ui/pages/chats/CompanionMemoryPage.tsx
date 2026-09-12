@@ -570,6 +570,7 @@ export function CompanionMemoryPage() {
   const [genRecentText, setGenRecentText] = useState<string | null>(null);
   const [showLiveOutput, setShowLiveOutput] = useState(false);
   const [developerMode, setDeveloperMode] = useState(false);
+  const [dynamicMemoryGloballyEnabled, setDynamicMemoryGloballyEnabled] = useState(false);
   const [nowTick, setNowTick] = useState(0);
   const liveOutputRef = useRef<HTMLPreElement | null>(null);
   const [showSummaryEditor, setShowSummaryEditor] = useState(false);
@@ -667,7 +668,9 @@ export function CompanionMemoryPage() {
   useEffect(() => {
     let mounted = true;
     void readSettings().then((settings) => {
-      if (mounted) setDeveloperMode(settings.advancedSettings?.developerModeEnabled ?? false);
+      if (!mounted) return;
+      setDeveloperMode(settings.advancedSettings?.developerModeEnabled ?? false);
+      setDynamicMemoryGloballyEnabled(settings.advancedSettings?.dynamicMemory?.enabled ?? false);
     });
     return () => {
       mounted = false;
@@ -992,6 +995,27 @@ export function CompanionMemoryPage() {
       />
 
       <main className="flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+24px)]">
+        {/* Dynamic memory needs two switches: the global one in Advanced, and
+            this character's own memory type. With the global one on and the
+            character left on manual, nothing runs and nothing explains why —
+            which reads as the feature being broken rather than off. Only shown
+            when the global switch is on, since otherwise the character setting
+            is not the thing standing in the way. */}
+        {!isDynamic && dynamicMemoryGloballyEnabled ? (
+          <div className="px-4 pt-3">
+            <div className="flex items-start gap-2.5 rounded-xl border border-fg/10 bg-fg/5 px-3.5 py-2.5">
+              <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-info" />
+              <div className="min-w-0 text-[11px] leading-relaxed text-fg/55">
+                <span className="font-medium text-fg/75">
+                  Dynamic Memory is on, but {character?.name ?? "this character"} is set to manual
+                  memory,
+                </span>{" "}
+                so it never runs here. Change it in this character&rsquo;s settings, under Memory.
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         {isDynamic &&
           (cycleStatus ||
             memoryCycleActive ||

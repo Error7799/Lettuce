@@ -4,10 +4,10 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { TrendingUp, Flame, Clock, AlertCircle, ArrowUpDown, Check } from "lucide-react";
 import { cn, interactive } from "../../design-tokens";
 import { useI18n } from "../../../core/i18n/context";
-import { DiscoveryCard, DiscoveryGridSkeleton } from "./components";
+import { DiscoveryCard, DiscoveryGridSkeleton, PureModeNotice } from "./components";
 import { PageHeader } from "../../components/App";
 import { useIsMobileViewport } from "./hooks/useIsMobileViewport";
-import { useShowNsfwImages } from "./hooks/useDiscoveryNsfw";
+import { useShowNsfwImages, usePureModeFiltering } from "./hooks/useDiscoveryNsfw";
 import { useNavigationManager } from "../../navigation";
 import {
   type DiscoveryCard as DiscoveryCardType,
@@ -61,6 +61,7 @@ export function DiscoveryBrowsePage() {
   const { t } = useI18n();
   const isMobileViewport = useIsMobileViewport();
   const showNsfw = useShowNsfwImages();
+  const pureModeFiltering = usePureModeFiltering();
   const { provider } = useDiscoveryProvider();
 
   const SECTION_CONFIGS: Record<CardType, SectionConfig> = {
@@ -208,6 +209,14 @@ export function DiscoveryBrowsePage() {
             actions={sortButton}
           />
         )}
+
+        {/* Results are thinner under Pure Mode; say so rather than letting it
+            look like the source is failing. */}
+        {pureModeFiltering && !loading && !error ? (
+          <div className="px-4 pb-1 pt-2">
+            <PureModeNotice />
+          </div>
+        ) : null}
 
         {/* Error state */}
         {error && (

@@ -26,6 +26,9 @@ import { ImageGenerationPage } from "./ui/pages/settings/ImageGenerationPage";
 import { StableDiffusionSettingsPage } from "./ui/pages/settings/StableDiffusionSettingsPage";
 import { SystemPromptsPage } from "./ui/pages/settings/SystemPromptsPage";
 import { WorldPage } from "./ui/pages/settings/WorldPage";
+import { LorebookMakerPage } from "./ui/pages/lorebook-maker/LorebookMakerPage";
+import { DiscoveryCreatorPage } from "./ui/pages/discovery/DiscoveryCreatorPage";
+import { ensureWorldPromptCurrent } from "./core/world/store";
 import { EditPromptTemplate } from "./ui/pages/settings/EditPromptTemplate";
 import { SecurityPage } from "./ui/pages/settings/SecurityPage";
 import { ResetPage } from "./ui/pages/settings/ResetPage";
@@ -368,6 +371,14 @@ function App() {
     const onOpen = () => setWhatsNewOpen(true);
     window.addEventListener(WHATS_NEW_OPEN_EVENT, onOpen);
     return () => window.removeEventListener(WHATS_NEW_OPEN_EVENT, onOpen);
+  }, []);
+
+  // The world block the prompt engine injects is derived text written on save.
+  // A world configured before a rule existed still holds the older compile, so
+  // bring it up to date once at startup rather than waiting for the user to
+  // happen to open the settings page and flip something.
+  useEffect(() => {
+    void ensureWorldPromptCurrent().catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -1212,11 +1223,13 @@ function AppContent() {
               <Route path="/wheretofind" element={<WhereToFindPage />} />
               <Route path="/search" element={<SearchPage />} />
               <Route path="/discover" element={<DiscoveryPage />} />
+              <Route path="/discover/creator/:name" element={<DiscoveryCreatorPage />} />
               <Route path="/discover/search" element={<DiscoverySearchPage />} />
               <Route path="/discover/browse" element={<DiscoveryBrowsePage />} />
               <Route path="/discover/card/:path" element={<DiscoveryCardDetailPage />} />
               <Route path="/playground" element={<PlaygroundPage />} />
               <Route path="/library" element={<LibraryPage />} />
+              <Route path="/lorebook-maker" element={<LorebookMakerPage />} />
               <Route path="/library/images/pick" element={<AvatarLibraryPickerPage />} />
               <Route
                 path="/library/images"

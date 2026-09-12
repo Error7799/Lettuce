@@ -338,12 +338,27 @@ export function DiscoveryCardDetailPage() {
             )}
 
             <div className="flex flex-wrap items-center gap-3 text-sm text-fg/60">
-              {authorName !== "Anonymous" && (
-                <span className="flex items-center gap-1.5">
-                  <User className="h-3.5 w-3.5" />
-                  {authorName}
-                </span>
-              )}
+              {authorName !== "Anonymous" &&
+                (provider.supportsCreatorBrowse ? (
+                  // Finding one character you like makes the person who wrote
+                  // it the most useful filter available, so the name leads to
+                  // the rest of their work. Only a link where the source can
+                  // actually filter by creator — elsewhere it would return the
+                  // whole catalogue dressed up as one person's.
+                  <button
+                    type="button"
+                    onClick={() => go(`/discover/creator/${encodeURIComponent(authorName)}`)}
+                    className="flex items-center gap-1.5 rounded text-accent underline underline-offset-2 hover:text-accent/80"
+                  >
+                    <User className="h-3.5 w-3.5" />
+                    {authorName}
+                  </button>
+                ) : (
+                  <span className="flex items-center gap-1.5">
+                    <User className="h-3.5 w-3.5" />
+                    {authorName}
+                  </span>
+                ))}
               {createdDate && (
                 <span className="flex items-center gap-1.5">
                   <Clock className="h-3.5 w-3.5" />
