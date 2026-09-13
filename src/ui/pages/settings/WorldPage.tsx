@@ -16,7 +16,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { ChevronDown, Globe, RotateCcw } from "lucide-react";
+import { ChevronDown, Globe, RotateCcw, Trash2 } from "lucide-react";
 
 import { cn, interactive } from "../../design-tokens";
 import { Switch } from "../../components/Switch";
@@ -31,6 +31,15 @@ import {
   type WorldInput,
 } from "../../../core/world/store";
 import { DEFAULT_WORLD_SETTINGS } from "../../../core/world/settings";
+import {
+  applyWorldProfile,
+  deleteWorldProfile,
+  getActiveWorldProfileId,
+  listWorldProfiles,
+  profileMatches,
+  saveWorldProfile,
+} from "../../../core/world/profiles";
+import type { WorldProfile } from "../../../core/storage/schemas";
 
 /* ── Small building blocks ───────────────────────────────────────────────*/
 
@@ -232,6 +241,146 @@ function EraPicker({
   );
 }
 
+
+/* ── World profiles ──────────────────────────────────────────────────────
+ * World rules are global, so running two stories at once leaves one of them
+ * configured wrong — a Taisho story point is actively harmful in a modern-day
+ * game. Profiles make switching a click instead of re-entering twenty toggles.
+ * ---------------------------------------------------------------------- */
+
+function WorldProfiles({
+  settings,
+  onApply,
+}: {
+  settings: WorldInput;
+  onApply: (loaded: WorldInput) => void;
+}) {
+  const [profiles, setProfiles] = useState<WorldProfile[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const refresh = useCallback(async () => {
+    setProfiles(await listWorldProfiles());
+    setActiveId(await getActiveWorldProfileId());
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const active = profiles.find((profile) => profile.id === activeId) ?? null;
+  // Shown so it is obvious when switching away would discard changes.
+  const edited = active ? !profileMatches(active, settings) : false;
+
+  return (
+    <Section
+      title="Profiles"
+      hint="Save these rules under a name and switch between stories without re-entering everything."
+    >
+      <Card>
+        <div className="flex gap-2">
+          <input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder={active ? active.name : "Demon Slayer"}
+            className={cn(
+              "min-w-0 flex-1 rounded-lg border bg-fg/[0.03] px-3 py-2 text-xs text-fg",
+              "border-fg/10 placeholder:text-fg/25 focus:border-accent/40 focus:outline-none",
+            )}
+          />
+          <button
+            type="button"
+            disabled={busy}
+            onClick={async () => {
+              const chosen = name.trim() || active?.name || "";
+              if (!chosen) {
+                toast.error("Name it first", "Give the profile a name so you can find it again.");
+                return;
+              }
+              setBusy(true);
+              try {
+                await saveWorldProfile(chosen, settings);
+                setName("");
+                await refresh();
+                toast.success("Saved", `“${chosen}” now holds these rules.`);
+              } catch (error) {
+                toast.error("Could not save", String(error));
+              } finally {
+                setBusy(false);
+              }
+            }}
+            className={cn(
+              "shrink-0 rounded-lg border px-3 py-2 text-xs font-medium",
+              "border-accent/40 bg-accent/20 text-accent hover:bg-accent/25",
+              "disabled:cursor-not-allowed disabled:opacity-45",
+              interactive.transition.fast,
+            )}
+          >
+            {active && !name.trim() ? "Update" : "Save"}
+          </button>
+        </div>
+
+        {profiles.length > 0 ? (
+          <div className="mt-3 space-y-1.5">
+            {profiles.map((profile) => {
+              const isActive = profile.id === activeId;
+              return (
+                <div
+                  key={profile.id}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg border px-3 py-2",
+                    isActive ? "border-accent/40 bg-accent/10" : "border-fg/10 bg-fg/[0.03]",
+                  )}
+                >
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const loaded = await applyWorldProfile(profile.id);
+                      if (loaded) {
+                        onApply(loaded);
+                        await refresh();
+                        toast.success("Loaded", profile.name);
+                      }
+                    }}
+                    className="min-w-0 flex-1 text-left"
+                  >
+                    <div className="truncate text-xs font-medium text-fg">
+                      {profile.name}
+                      {isActive && edited ? (
+                        <span className="ml-2 text-[10px] font-normal text-fg/40">edited</span>
+                      ) : null}
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Delete ${profile.name}`}
+                    onClick={async () => {
+                      await deleteWorldProfile(profile.id);
+                      await refresh();
+                      toast.success("Deleted", profile.name);
+                    }}
+                    className={cn(
+                      "shrink-0 rounded-md p-1.5 text-fg/35 hover:bg-danger/10 hover:text-danger",
+                      interactive.transition.fast,
+                    )}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="mt-3 text-[11px] leading-relaxed text-fg/40">
+            No profiles yet. Set the rules below, then save them under a name.
+          </div>
+        )}
+      </Card>
+    </Section>
+  );
+}
+
 /* ── Page ────────────────────────────────────────────────────────────────*/
 
 export function WorldPage() {
@@ -303,6 +452,8 @@ export function WorldPage() {
         ) : null}
 
         <div className={cn("space-y-6", off && "pointer-events-none opacity-40")}>
+          <WorldProfiles settings={settings} onApply={(loaded) => setSettings(loaded)} />
+
           <Section
             title="Start from"
             hint="A whole set of rules in one click. You can adjust anything afterwards."
@@ -572,6 +723,48 @@ export function WorldPage() {
               description="Fights are decided by comparing strength, speed, reach, gear and training. Stamina drains, armour costs agility, and a wounded arm keeps making weaker strikes."
               checked={settings.realisticResolution}
               onChange={(value) => void patch({ realisticResolution: value })}
+            />
+            <ToggleRow
+              label="Everyone stays present"
+              description="Other people in the scene keep doing things while two characters talk — reacting, losing patience, interrupting — instead of standing frozen until spoken to."
+              checked={settings.livingScenes}
+              onChange={(value) => void patch({ livingScenes: value })}
+            />
+            <ToggleRow
+              label="Distance and time are real"
+              description="Crossing a city takes as long as it takes, wounds need days rather than a scene, and nobody arrives just because the moment calls for them."
+              checked={settings.timeAndDistance}
+              onChange={(value) => void patch({ timeAndDistance: value })}
+            />
+            <ToggleRow
+              label="Never write your character's thoughts"
+              description="The AI describes what is said and done to you, then stops. It won't tell you what you felt, noticed or realised."
+              checked={settings.noUserInteriority}
+              onChange={(value) => void patch({ noUserInteriority: value })}
+            />
+            <ToggleRow
+              label="Consequences persist"
+              description="Promises, debts, grudges and favours are remembered and come back — whether or not it's convenient."
+              checked={settings.consequencesPersist}
+              onChange={(value) => void patch({ consequencesPersist: value })}
+            />
+            <ToggleRow
+              label="No time skips"
+              description="Stays in the present moment instead of jumping to “later that evening” without you."
+              checked={settings.noTimeSkips}
+              onChange={(value) => void patch({ noTimeSkips: value })}
+            />
+            <ToggleRow
+              label="Don't ask what you do next"
+              description="Ends on something happening in the world rather than “What do you do?”."
+              checked={settings.noPromptingTheUser}
+              onChange={(value) => void patch({ noPromptingTheUser: value })}
+            />
+            <ToggleRow
+              label="No repeated phrasing"
+              description="Stops the AI reusing its own distinctive images and sentence shapes — the same silence described as heavy three scenes running."
+              checked={settings.noSelfRepetition}
+              onChange={(value) => void patch({ noSelfRepetition: value })}
             />
           </Section>
 

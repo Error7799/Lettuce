@@ -46,6 +46,14 @@ function cloneAppState(state?: AppState): AppState {
     lastSeenAppVersion: source.lastSeenAppVersion,
     adhdReading: source.adhdReading ?? "off",
     lorebookBudget: { maxTokens: source.lorebookBudget?.maxTokens ?? 0 },
+    personaCapabilities: Object.fromEntries(
+      Object.entries(source.personaCapabilities ?? {}).map(([id, sheet]) => [id, { ...sheet }]),
+    ),
+    worldProfiles: (source.worldProfiles ?? []).map((profile) => ({
+      ...profile,
+      settings: { ...profile.settings },
+    })),
+    activeWorldProfileId: source.activeWorldProfileId ?? null,
     world: { ...DEFAULT_WORLD_STATE, ...(source.world ?? {}) },
     copilot: {
       enabled: source.copilot?.enabled ?? false,

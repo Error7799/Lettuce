@@ -4240,10 +4240,31 @@ pub fn render_with_context_internal(
 
     // Get persona info
     let persona_name = persona.map(|p| p.title.as_str()).unwrap_or("user");
-    let persona_desc = persona
+    let persona_desc_base = persona
         .map(|p| p.description.trim())
         .filter(|s| !s.is_empty())
         .unwrap_or("");
+
+    // The capability sheet, appended to the persona description.
+    //
+    // The action-resolution rules ask the model to weigh an attempt against
+    // what the character can actually do, and without this there is nothing to
+    // weigh — a persona is one free-text paragraph. Appending rather than using
+    // a separate variable means it reaches the model through {{persona.desc}},
+    // which every roleplay template already includes.
+    let persona_caps = persona
+        .map(|p| persona_capabilities_text(&settings.app_state, &p.id))
+        .unwrap_or_default();
+    let persona_desc_owned = if persona_caps.is_empty() {
+        persona_desc_base.to_string()
+    } else if persona_desc_base.is_empty() {
+        persona_caps
+    } else {
+        format!("{}
+
+{}", persona_desc_base, persona_caps)
+    };
+    let persona_desc: &str = &persona_desc_owned;
 
     let edited_scene_content = edited_session_scene_content(session);
     let (scene_content, scene_direction) = if let Some(selected_scene_id) =
@@ -4999,4 +5020,21 @@ pub(crate) fn character_voice_text(character: &Character) -> String {
         "[Who you are — this governs how you behave, above any general style.]\n{}",
         lines.join("\n")
     )
+}
+
+/// The capability sheet for a persona, compiled on the TypeScript side.
+///
+/// Rust does not know how the fields become prose, for the same reason it does
+/// not know how a world toggle becomes a sentence: the wording lives in one
+/// place so it can be edited and tested without touching the backend.
+pub(crate) fn persona_capabilities_text(app_state: &Value, persona_id: &str) -> String {
+    app_state
+        .get("personaCapabilities")
+        .and_then(|sheets| sheets.get(persona_id))
+        .and_then(|sheet| sheet.get("compiled"))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|text| !text.is_empty())
+        .unwrap_or("")
+        .to_string()
 }

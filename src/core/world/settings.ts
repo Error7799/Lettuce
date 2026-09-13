@@ -178,6 +178,20 @@ export interface WorldSettings {
   knowledgeFirewall: boolean;
   /** Bodies tire, armour slows, wounds impair; skill level shows in how people fight. */
   realisticResolution: boolean;
+  /** Everyone in the scene stays present rather than freezing between lines. */
+  livingScenes: boolean;
+  /** Distance, travel and recovery take real time. */
+  timeAndDistance: boolean;
+  /** Do not reuse distinctive phrasing or imagery from earlier replies. */
+  noSelfRepetition: boolean;
+  /** Never write what the user's character thinks, feels or decides. */
+  noUserInteriority: boolean;
+  /** Promises, debts, grudges and favours are remembered and come back. */
+  consequencesPersist: boolean;
+  /** Do not skip hours or days ahead without the user leading. */
+  noTimeSkips: boolean;
+  /** Do not end replies by asking the user what they do next. */
+  noPromptingTheUser: boolean;
 
   /* Craft */
   /** How composed spoken lines are allowed to be. */
@@ -228,6 +242,13 @@ export const DEFAULT_WORLD_SETTINGS: WorldSettings = {
   actionGating: true,
   knowledgeFirewall: false,
   realisticResolution: false,
+  livingScenes: false,
+  timeAndDistance: false,
+  noSelfRepetition: false,
+  noUserInteriority: false,
+  consequencesPersist: false,
+  noTimeSkips: false,
+  noPromptingTheUser: false,
   dialogueStyle: "natural",
   restrainedProse: true,
   tone: "neutral",
@@ -625,6 +646,75 @@ function neutralityLines(settings: WorldSettings): string[] {
       "Characters know only what they have seen, been told, or could reasonably infer. Never let a character act on information they have no way of having.",
     );
   }
+  if (settings.livingScenes) {
+    // Models hold one speaker at a time and let everyone else stand frozen
+    // until addressed, which turns a room full of people into a queue.
+    lines.push(
+      "Everyone present stays present. While two characters talk, the others are still doing something — moving, reacting, losing patience, leaving — and may interrupt or act without being addressed first.",
+    );
+    lines.push(
+      "Do not park a character out of the scene until the user speaks to them. If someone has nothing to add, show them doing something rather than waiting.",
+    );
+  }
+
+  if (settings.timeAndDistance) {
+    lines.push(
+      "Distance and time are real. Crossing a city takes as long as it takes, a wound needs days rather than a scene, and someone across town cannot arrive because the moment calls for them.",
+    );
+    lines.push(
+      "Say how long something took when it matters, and let anyone who has to travel actually be absent for that long.",
+    );
+  }
+
+  if (settings.noSelfRepetition) {
+    // A distinctive image is memorable to the reader too, so reuse reads as a
+    // tic far faster than the model appears to notice.
+    lines.push(
+      "Do not reuse distinctive phrasing, images or sentence shapes from your earlier replies. If you have already described silence as heavy or an engine as a low growl, find something else or say it plainly.",
+    );
+    lines.push(
+      "Vary how replies open and close. Do not settle into a rhythm where every turn begins with the same kind of observation.",
+    );
+  }
+
+  if (settings.noUserInteriority) {
+    // turnBasedAction covers this inside a fight. Outside one, models still
+    // narrate the player's reactions and feelings, which quietly takes over
+    // the only character the user actually plays.
+    lines.push(
+      "Never write what the user's character thinks, feels, notices, decides or intends. Describe what is said and done to them, and what is visible from outside, then stop.",
+    );
+    lines.push(
+      "Do not summarise their mood, their realisations, or how something landed for them. If a reaction matters, leave the space for them to write it.",
+    );
+  }
+
+  if (settings.consequencesPersist) {
+    lines.push(
+      "Commitments hold. A promise made, a debt owed, a favour taken, an insult given and a threat issued all stay true, and come back later whether or not they are convenient.",
+    );
+    lines.push(
+      "Characters remember how they were treated and act on it. Someone helped is warmer next time; someone crossed does not simply move on.",
+    );
+  }
+
+  if (settings.noTimeSkips) {
+    lines.push(
+      "Stay in the present moment. Do not jump ahead to later that day, the next morning, or after an event unless the user takes you there.",
+    );
+    lines.push(
+      "Do not summarise a stretch of time into a paragraph. If a scene is quiet, play the quiet rather than skipping past it.",
+    );
+  }
+
+  if (settings.noPromptingTheUser) {
+    // "What do you do?" is a game-master tic that breaks the fiction and puts
+    // the burden of momentum back on the reader every single turn.
+    lines.push(
+      'Do not end by asking the user what they want to do, or offering them a menu of options. Finish on something happening in the world and let them answer it.',
+    );
+  }
+
   return lines;
 }
 
@@ -949,4 +1039,32 @@ export function compileWorldReminder(settings: WorldSettings): string {
 /** True when the settings would actually change the prompt. */
 export function hasWorldEffect(settings: WorldSettings): boolean {
   return compileWorldPrompt(settings).length > 0;
+}
+
+/**
+ * Whether a saved rule set still matches the live settings.
+ *
+ * Lives here rather than with the profile storage because it is a pure
+ * comparison of settings, and keeping it in the pure module means it can be
+ * tested without the Tauri storage layer being importable.
+ *
+ * `enabled` is excluded on both sides: a profile never carries it, so its
+ * presence in the live settings must not register as a difference.
+ */
+export function profileMatches(
+  profile: { settings: Partial<Omit<WorldSettings, "enabled">> },
+  settings: Partial<WorldSettings>,
+): boolean {
+  const { enabled: _ignored, ...rules } = settings;
+  // Only the keys the profile actually declares. Comparing the union instead
+  // would mark a profile as edited forever whenever it holds fewer fields than
+  // the current defaults — which is exactly what happens after a release adds
+  // a new rule to a profile saved before it existed.
+  for (const key of Object.keys(profile.settings)) {
+    if (key === "enabled") continue;
+    const a = (profile.settings as Record<string, unknown>)[key];
+    const b = (rules as Record<string, unknown>)[key];
+    if (JSON.stringify(a) !== JSON.stringify(b)) return false;
+  }
+  return true;
 }

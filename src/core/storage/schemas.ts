@@ -3223,6 +3223,20 @@ export const WorldSettingsSchema = z.object({
   knowledgeFirewall: z.boolean().default(false),
   /** Stamina, armour, injuries and skill level govern outcomes. */
   realisticResolution: z.boolean().default(false),
+  /** Everyone in the scene stays present rather than freezing between lines. */
+  livingScenes: z.boolean().default(false),
+  /** Distance, travel and recovery take real time. */
+  timeAndDistance: z.boolean().default(false),
+  /** Do not reuse distinctive phrasing or imagery from earlier replies. */
+  noSelfRepetition: z.boolean().default(false),
+  /** Never write what the user's character thinks, feels or decides. */
+  noUserInteriority: z.boolean().default(false),
+  /** Promises, debts, grudges and favours are remembered and come back. */
+  consequencesPersist: z.boolean().default(false),
+  /** Do not skip hours or days ahead without the user leading. */
+  noTimeSkips: z.boolean().default(false),
+  /** Do not end replies by asking the user what they do next. */
+  noPromptingTheUser: z.boolean().default(false),
 
   /** How composed spoken lines are allowed to be. */
   dialogueStyle: z.enum(["cinematic", "natural", "unpolished"]).default("natural"),
@@ -3259,6 +3273,38 @@ export const LorebookBudgetSchema = z.object({
 });
 export type LorebookBudget = z.infer<typeof LorebookBudgetSchema>;
 
+/**
+ * A saved set of world rules under a name.
+ *
+ * `settings` deliberately excludes `enabled`: whether world rules are active
+ * at all is a separate switch from which rules they are, and carrying it would
+ * let loading a profile silently turn the whole system off.
+ */
+export const WorldProfileSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  settings: WorldSettingsSchema.omit({ enabled: true }).partial(),
+  createdAt: z.number().int().nonnegative(),
+  updatedAt: z.number().int().nonnegative(),
+});
+export type WorldProfile = z.infer<typeof WorldProfileSchema>;
+
+/**
+ * What a persona can actually do, so the world rules have something to resolve
+ * attempted actions against. Stored per persona id; the compiled text is what
+ * the prompt engine appends to the persona description.
+ */
+export const PersonaCapabilitiesSchema = z.object({
+  skills: z.string().default(""),
+  limits: z.string().default(""),
+  equipment: z.string().default(""),
+  condition: z.string().default(""),
+  notes: z.string().default(""),
+  /** Derived: the rendered block, rebuilt on every save. */
+  compiled: z.string().default(""),
+});
+export type PersonaCapabilitiesState = z.infer<typeof PersonaCapabilitiesSchema>;
+
 export const AppStateSchema = z.object({
   onboarding: OnboardingStateSchema,
   theme: z.enum(["light", "dark"]),
@@ -3285,6 +3331,12 @@ export const AppStateSchema = z.object({
   adhdReading: z.enum(["off", "light", "medium", "strong"]).default("off"),
   /** Cap on injected lorebook content. 0 = uncapped. */
   lorebookBudget: LorebookBudgetSchema.default(() => LorebookBudgetSchema.parse({})),
+  /** Capability sheets keyed by persona id. */
+  personaCapabilities: z.record(z.string(), PersonaCapabilitiesSchema).default({}),
+  /** Saved world rule sets you can switch between. */
+  worldProfiles: z.array(WorldProfileSchema).default([]),
+  /** Which profile the live settings were last loaded from. */
+  activeWorldProfileId: z.string().nullable().default(null),
   /** The rules this world runs on. Replaces the preset system. */
   world: WorldSettingsSchema.default(() => WorldSettingsSchema.parse({})),
   /** Out-of-character assistant. Off until switched on in Settings. */
@@ -3569,6 +3621,9 @@ export function createDefaultAppState(): AppState {
     trustedCertificates: [],
     adhdReading: "off",
     lorebookBudget: LorebookBudgetSchema.parse({}),
+    personaCapabilities: {},
+    worldProfiles: [],
+    activeWorldProfileId: null,
     world: WorldSettingsSchema.parse({}),
     copilot: { enabled: false, conversations: [], quickPrompts: [] },
   };

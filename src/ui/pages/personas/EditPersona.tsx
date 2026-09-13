@@ -13,6 +13,7 @@ import { Switch } from "../../components/Switch";
 import { DesignReferenceEditor } from "../../components/DesignReferenceEditor";
 import { LoraSelector } from "../../components/LoraSelector";
 import { ActiveLorebooksSelector } from "../characters/components/ActiveLorebooksSelector";
+import { CapabilitiesCard } from "./components/CapabilitiesCard";
 import { useI18n } from "../../../core/i18n/context";
 import { typography, radius, spacing, interactive, cn } from "../../design-tokens";
 
@@ -271,6 +272,8 @@ export function EditPersonaPage() {
                 onChange={setActiveLorebookIds}
                 subjectLabel="persona"
               />
+
+              <CapabilitiesCard personaId={personaId} />
 
               <div className={spacing.field}>
                 <motion.button
