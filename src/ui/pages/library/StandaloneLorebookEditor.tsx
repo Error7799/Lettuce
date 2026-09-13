@@ -13,6 +13,7 @@ import {
   X,
   Download,
   Loader2,
+  ListChecks,
 } from "lucide-react";
 import { motion, type PanInfo, useDragControls } from "framer-motion";
 import type { Lorebook, LorebookEntry } from "../../../core/storage/schemas";
@@ -905,6 +906,18 @@ export function StandaloneLorebookEditor() {
                 className="w-full rounded-xl border border-fg/10 bg-surface-el/20 pl-9 pr-4 py-2 text-sm text-fg placeholder-fg/40 transition focus:border-fg/30 focus:outline-none"
               />
             </div>
+            {/* Bulk edit. Literal label rather than a t() key: adding one would
+                mean touching every locale file, and an untranslated key reads
+                worse than English. */}
+            <button
+              type="button"
+              onClick={() => navigate(`/library/lorebooks/${lorebook.id}/bulk`)}
+              className="flex shrink-0 items-center gap-1.5 rounded-xl border border-fg/10 bg-surface-el/20 px-3 py-2 text-xs font-medium text-fg/70 transition hover:border-fg/25 hover:text-fg"
+              title="Bulk edit entries"
+            >
+              <ListChecks className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Bulk edit</span>
+            </button>
             <button
               type="button"
               onClick={() => navigate(Routes.libraryLorebookPreview(lorebook.id))}

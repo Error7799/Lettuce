@@ -27,6 +27,7 @@ import { StableDiffusionSettingsPage } from "./ui/pages/settings/StableDiffusion
 import { SystemPromptsPage } from "./ui/pages/settings/SystemPromptsPage";
 import { WorldPage } from "./ui/pages/settings/WorldPage";
 import { LorebookMakerPage } from "./ui/pages/lorebook-maker/LorebookMakerPage";
+import { LorebookBulkEditor } from "./ui/pages/characters/LorebookBulkEditor";
 import { DiscoveryCreatorPage } from "./ui/pages/discovery/DiscoveryCreatorPage";
 import { ensureWorldPromptCurrent } from "./core/world/store";
 import { EditPromptTemplate } from "./ui/pages/settings/EditPromptTemplate";
@@ -1236,6 +1237,7 @@ function AppContent() {
                 element={<Navigate to="/library?view=images" replace />}
               />
               <Route path="/library/lorebooks/:lorebookId" element={<StandaloneLorebookEditor />} />
+              <Route path="/library/lorebooks/:lorebookId/bulk" element={<LorebookBulkEditor />} />
               <Route
                 path="/library/lorebooks/:lorebookId/generate"
                 element={<LorebookEntryGeneratorFlowPage />}
