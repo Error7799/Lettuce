@@ -693,6 +693,42 @@ function Collected({
           ))}
         </div>
 
+        {/* Infobox extraction. Literal labels rather than t() keys: adding them
+            would mean touching all 19 locale files, and an untranslated key
+            reads worse than English. */}
+        <div className="flex gap-1.5">
+          <button
+            type="button"
+            onClick={() => maker.setEnrich(!maker.enrich)}
+            title="Pull age, species, status and the names the cast actually uses out of the infobox"
+            className={cn(
+              "flex-1 rounded-lg border px-2 py-1.5 text-[10px] font-medium",
+              interactive.transition.fast,
+              maker.enrich
+                ? "border-accent/40 bg-accent/20 text-accent"
+                : "border-fg/10 bg-fg/5 text-fg/55 hover:bg-fg/10",
+            )}
+          >
+            Infobox facts
+          </button>
+          <button
+            type="button"
+            onClick={() => maker.setIncludeSpoilers(!maker.includeSpoilers)}
+            disabled={!maker.enrich}
+            title="Include status, fate and later affiliations — these give away how the story ends"
+            className={cn(
+              "flex-1 rounded-lg border px-2 py-1.5 text-[10px] font-medium",
+              interactive.transition.fast,
+              "disabled:cursor-not-allowed disabled:opacity-40",
+              maker.includeSpoilers
+                ? "border-accent/40 bg-accent/20 text-accent"
+                : "border-fg/10 bg-fg/5 text-fg/55 hover:bg-fg/10",
+            )}
+          >
+            Spoilers
+          </button>
+        </div>
+
         <select
           value={bookId}
           onChange={(event) => setBookId(event.target.value)}

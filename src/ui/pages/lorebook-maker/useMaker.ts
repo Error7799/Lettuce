@@ -27,6 +27,7 @@ import {
   type WikiSite,
   type WikiWork,
 } from "../../../core/wiki";
+import { fetchInfoboxes, enrichEntry } from "../../../core/wiki/enrich";
 
 export type Step = "connect" | "work" | "browse";
 export type Busy =
@@ -69,6 +70,13 @@ export function useMaker() {
   const [minShare, setMinShare] = useState(0.12);
   /** How long each entry's text may run. */
   const [entryLength, setEntryLength] = useState<"brief" | "standard" | "full">("standard");
+  /** Pull facts and aliases out of the infobox as well as the lead paragraph. */
+  const [enrich, setEnrich] = useState(true);
+  /**
+   * Off by default. Status and later affiliations are exactly what someone
+   * building a book for an early arc does not want handed to the model.
+   */
+  const [includeSpoilers, setIncludeSpoilers] = useState(false);
 
   const maxChars = entryLength === "brief" ? 600 : entryLength === "full" ? 2400 : 1200;
 
@@ -229,8 +237,25 @@ export function useMaker() {
           const slice = titles.slice(i, i + 20);
           setProgress(`Reading ${Math.min(i + slice.length, titles.length)} of ${titles.length}…`);
           const pages = await fetchPages(site.api, slice);
+          // The page fetch returns rendered extracts, which do not include the
+          // infobox. Facts and aliases need the source wikitext, so that is a
+          // second call — worth it because the alias half is what makes an
+          // entry fire at all when the cast uses a nickname.
+          const infoboxes = enrich
+            ? await fetchInfoboxes(
+                site.api,
+                pages.filter((page) => !page.missing).map((page) => page.title),
+              )
+            : new Map();
           for (const page of pages) {
-            const entry = entryFromPage(page, maxChars);
+            const built = entryFromPage(page, maxChars);
+            const entry = built
+              ? enrichEntry(built, infoboxes.get(built.title), {
+                  includeFacts: enrich,
+                  useAliases: enrich,
+                  includeSpoilers,
+                })
+              : null;
             if (entry) {
               next.set(entry.title, entry);
               added += 1;
@@ -328,6 +353,10 @@ export function useMaker() {
     keyCollisions,
     minShare,
     entryLength,
+    enrich,
+    setEnrich,
+    includeSpoilers,
+    setIncludeSpoilers,
     setEntryLength,
     connect,
     chooseWork,
