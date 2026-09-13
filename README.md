@@ -53,6 +53,63 @@ setup step — everything else works out of the box.
 
 > Building from source instead? See **[SETUP.md](SETUP.md)**.
 
+## What this fork adds
+
+Everything below is in **Settings → World**, except where noted. All of it is
+off by default, so an existing setup behaves exactly as it did.
+
+### World rules
+
+Instead of writing prompts, you answer questions about the world and the app
+writes them. How dangerous it is, what era it is, whether it revolves around
+you, whether the narration moralises. Pick a **starting point** — Grimdark
+survival, Living world, Cozy, Gritty realism, Dungeon crawl — then adjust.
+
+**Where the story stands** is the one worth knowing about. Lorebooks usually
+document a whole story while you play an early part of it, so characters in the
+Final Selection arc "remember" Hashira they have never met. Say where you are
+and turn on *No knowledge of what comes later*, and reference material about
+later events is treated as unwritten future — while still being usable for
+background.
+
+**Turns and actions** stops the AI resolving a whole attack sequence while you
+watch. It ends its reply while the outcome is still open, treats everything you
+write as an attempt rather than a result, and makes opponents work out your
+weaknesses mid-fight instead of reading them off the page.
+
+**Profiles** save a whole rule set under a name, so running a Taishō-era story
+and a modern-day one does not mean reconfiguring everything each time.
+
+### Characters that sound like themselves
+
+Characters receive directives derived from their own card, so two characters no
+longer read alike. There are also rules against the specific ways a model
+*performs* a trait rather than having one — the quip about whatever object was
+last mentioned, the pointed silence on a schedule.
+
+**Edit Persona → What they can actually do** gives the action rules something
+real to weigh against: what your character can do, what they cannot, what they
+are carrying, what is wrong with them.
+
+### Lorebooks
+
+**Lorebook Maker** builds entries from a wiki with no LLM involved, so it
+cannot invent facts. It reads infoboxes as well as lead paragraphs, which means
+entries carry age, species and — most usefully — the aliases the cast actually
+uses, so an entry fires when a scene says a nickname instead of a full name.
+Spoiler fields are separated and off by default. You can browse by season or
+story arc rather than scrolling a flat list of every character in the show.
+
+**Bulk edit**, on any lorebook, fixes the problems lorebooks actually have.
+It leads with the always-active token cost, because a book with two dozen
+always-on entries spends most of the context before the scene starts and
+nothing else says so out loud. Select across filters and change activation,
+enable/disable, or find-and-replace across content, titles and keywords. It
+also flags keywords shared by more than one entry.
+
+**Settings → World → Lorebook budget** caps how much gets injected per message,
+dropping the lowest-priority entries when over.
+
 ## Overview
 
 LettuceAI is a privacy-focused, free and open-source AI character chat app for immersive roleplay, storytelling, and realistic AI companions with long-term memory that actually lasts.
