@@ -66,6 +66,22 @@ jobs:
     runs-on: ${{ matrix.platform }}
 
     steps:
+      # Windows' 260-character path limit is what has failed every Windows
+      # release so far. llama.cpp vendors a Svelte UI whose component paths are
+      # deep enough that cloning it under the runner's cargo checkout directory
+      # exceeds MAX_PATH, so cargo cannot even fetch the dependency and the job
+      # dies before compiling anything:
+      #
+      #   path too long: '.../ChatAttachmentsPreviewCurrentItemAudio.svelte'
+      #
+      # core.longpaths lets git use the extended-length API. It is set before
+      # checkout because the same limit applies to every clone in the job.
+      - name: Allow long paths (Windows)
+        if: matrix.platform == 'windows-latest'
+        run: |
+          git config --system core.longpaths true
+          git config --global core.longpaths true
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
